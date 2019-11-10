@@ -1,0 +1,22 @@
+# The public folder is generated from the frontend
+/assets/public
+/assets/setup
+
+.vscode
+# Don't save any socket files
+*.sock
+
+# Node modules are unnecessary
+node_modules/
+
+# Don't include python build cache
+__pycache__/
+*.py[cod]
+
+# Ignore databases generated for testing
+test_db/
+testdb/
+
+# Eh, package lock is not needed temporarily
+package-lock.json
+go.sum
