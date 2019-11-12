@@ -1,7 +1,7 @@
 <template>
   <v-flex>
-    <draggable v-model="codelist">
-      <cell v-for="c in codelist" :key="c.key" :code="c.code" output="hey" />
+    <draggable v-model="cells">
+      <cell v-for="c in cells" :key="c.key" :cell="c" />
     </draggable>
   </v-flex>
 </template>
@@ -13,8 +13,14 @@ export default {
     Cell,
     Draggable
   },
-  data: () => ({
-    codelist: [{ key: "1", code: "2+2" }, { key: 2, code: "2+5" }]
-  })
+  props: {
+    contents: Object
+  },
+  computed: {
+    cells() {
+      let i = 0;
+      return this.contents.cells.map(c => ({ ...c, key: i++ }));
+    }
+  }
 };
 </script>

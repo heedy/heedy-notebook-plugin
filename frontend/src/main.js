@@ -1,7 +1,10 @@
 import Create from "./main/create.vue";
 import Container from "./main/container.vue";
+import vuexModule from "./main/vuex.js";
 
 function setup(app) {
+    app.store.registerModule("notebooks", vuexModule);
+
     app.source.addCreator({
         key: "notebook",
         text: "Notebook",

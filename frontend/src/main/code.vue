@@ -86,7 +86,7 @@ export default {
     return {
       cmOptions: {
         readOnly: this.readonly,
-        mode: "javascript",
+        mode: "python",
         theme: "neat",
         indentUnit: 4
       },
