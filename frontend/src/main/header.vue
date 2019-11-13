@@ -14,37 +14,40 @@
         </template>
         <span>Download</span>
       </v-tooltip>
-      <v-tooltip bottom>
-        <template #activator="{on}">
-          <v-btn icon v-on="on">
-            <v-icon>replay</v-icon>
-          </v-btn>
-        </template>
-        <span>Restart Kernel</span>
-      </v-tooltip>
-      <v-tooltip bottom>
-        <template #activator="{on}">
-          <v-btn icon v-on="on">
-            <v-icon>play_arrow</v-icon>
-          </v-btn>
-        </template>
-        <span>Run All</span>
-      </v-tooltip>
-      <v-tooltip bottom>
-        <template #activator="{on}">
-          <v-btn icon v-on="on">
-            <v-icon>edit</v-icon>
-          </v-btn>
-        </template>
-        <span>Edit Source</span>
-      </v-tooltip>
+      <div v-if="!readonly">
+        <v-tooltip bottom>
+          <template #activator="{on}">
+            <v-btn icon v-on="on">
+              <v-icon>replay</v-icon>
+            </v-btn>
+          </template>
+          <span>Restart Kernel</span>
+        </v-tooltip>
+        <v-tooltip bottom>
+          <template #activator="{on}">
+            <v-btn icon v-on="on">
+              <v-icon>play_arrow</v-icon>
+            </v-btn>
+          </template>
+          <span>Run All</span>
+        </v-tooltip>
+        <v-tooltip bottom>
+          <template #activator="{on}">
+            <v-btn icon v-on="on">
+              <v-icon>edit</v-icon>
+            </v-btn>
+          </template>
+          <span>Edit Source</span>
+        </v-tooltip>
+      </div>
     </v-toolbar>
   </div>
 </template>
 <script>
 export default {
   props: {
-    source: Object
+    source: Object,
+    readonly: Boolean
   }
 };
 </script>

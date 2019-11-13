@@ -1,12 +1,51 @@
 <template>
   <div>
-    <template v-if="cell.cell_type=='code'">
-      <cell-code :code="source" />
+    <div v-if="collapsed">
+      <v-tooltip bottom>
+        <template #activator="{on}">
+          <v-btn icon v-on="on" x-small @click="hide(false)">
+            <v-icon>more_horiz</v-icon>
+          </v-btn>
+        </template>
+        <span>Show Hidden</span>
+      </v-tooltip>
+    </div>
+    <template v-else-if="cell.cell_type=='code'">
+      <cell-code
+        ref="code"
+        v-model="source"
+        :readonly="readonly"
+        :count="cell.execution_count"
+        @convert="convert"
+        @delete="$emit('delete')"
+        @addAbove="$emit('addAbove')"
+        @addBelow="$emit('addBelow')"
+        @hide="hide(true)"
+        @run="run()"
+      />
       <cell-output :output="cell.outputs" />
     </template>
     <template v-else-if="cell.cell_type=='markdown'">
-      <execute-result :result="{'text/markdown': source}" />
+      <div v-if="!editing || readonly" v-on:dblclick="editing=true">
+        <execute-result :result="{'text/markdown': source}" />
+      </div>
+
+      <cell-code
+        v-else
+        ref="code"
+        v-model="source"
+        :readonly="readonly"
+        lang="markdown"
+        @run="{editing=false;run()}"
+        @convert="convert"
+        @delete="$emit('delete')"
+        @addAbove="$emit('addAbove')"
+        @addBelow="$emit('addBelow')"
+        @hide="hide(true)"
+        :autofocus="true"
+      />
     </template>
+    <div v-else>Unknown cell type: {{ JSON.stringify(cell) }}</div>
   </div>
 </template>
 <script>
@@ -14,6 +53,10 @@ import CellCode from "./code.vue";
 import ExecuteResult from "./result.vue";
 import CellOutput from "./output.vue";
 export default {
+  model: {
+    prop: "cell",
+    event: "update"
+  },
   components: {
     CellCode,
     ExecuteResult,
@@ -26,12 +69,65 @@ export default {
       default: false
     }
   },
+  data: () => ({
+    editing: false
+  }),
   computed: {
-    source() {
-      if (Array.isArray(this.cell.source)) {
-        return this.cell.source.join("");
+    source: {
+      get() {
+        if (Array.isArray(this.cell.source)) {
+          return this.cell.source.join("");
+        }
+        return this.cell.source;
+      },
+      set(v) {
+        this.$emit("update", {
+          ...this.cell,
+          source: v
+        });
       }
-      return this.cell.source;
+    },
+    collapsed() {
+      if (this.cell.metadata.collapsed !== undefined) {
+        return this.cell.metadata.collapsed;
+      }
+      return false;
+    }
+  },
+  methods: {
+    convert(t) {
+      let newcell = {
+        key: this.cell.key,
+        source: this.cell.source,
+        cell_type: t,
+        metadata: {}
+      };
+      if (t == "code") {
+        newcell.outputs = [];
+        newcell.execution_count = null;
+      } else if (t == "markdown") {
+        this.editing = true;
+      }
+      console.log(newcell);
+      this.$emit("update", newcell);
+    },
+    hide(v) {
+      this.$emit("update", {
+        ...this.cell,
+        metadata: {
+          ...this.cell.metadata,
+          collapsed: v
+        }
+      });
+    },
+    run() {
+      this.$emit("run", this.cell);
+    },
+    focus() {
+      if (this.collapsed) {
+        this.hide(false);
+      }
+      setTimeout(() => this.$refs["code"].focus(), 0);
     }
   }
 };

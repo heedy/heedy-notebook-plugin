@@ -45,8 +45,11 @@ async def contents(request):
         if res.status != 201:
             web.Response(status=500, text=json.dumps(
                 {"error": "Internal error"}))
-        print(res.status, res)
-        print(await res.json())
+        res = await s.get(nbloc, headers=headers)
+        if res.status != 200:
+            web.Response(status=500, text=json.dumps(
+                {"error": "Internal error"}))
+            print(await res.text())
 
     return web.Response(text=await res.text())
 
