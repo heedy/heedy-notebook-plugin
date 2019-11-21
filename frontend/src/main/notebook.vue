@@ -64,7 +64,7 @@ export default {
     addCell(i) {
       this.contents.cells.splice(i, 0, {
         key: uuidv4(),
-        source: "",
+        object: "",
         cell_type: "code",
         metadata: {},
         outputs: [],

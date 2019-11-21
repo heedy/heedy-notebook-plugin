@@ -16,7 +16,7 @@ export default {
         readNotebook: async function ({
             commit
         }, q) {
-            let res = await api("GET", `api/heedy/v1/sources/${q.id}/contents`);
+            let res = await api("GET", `api/heedy/v1/objects/${q.id}/contents`);
             if (res.response.ok) {
                 console.log(res);
                 commit("setNotebook", {

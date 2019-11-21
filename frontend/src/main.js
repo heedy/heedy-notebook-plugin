@@ -5,26 +5,26 @@ import vuexModule from "./main/vuex.js";
 function setup(app) {
     app.store.registerModule("notebooks", vuexModule);
 
-    app.source.addCreator({
+    app.object.addCreator({
         key: "notebook",
         text: "Notebook",
         icon: "code",
-        route: "/create/source/notebook"
+        route: "/create/object/notebook"
     });
 
     /*
-    app.source.addRoute({
+    app.object.addRoute({
       path: "/stream/update",
       component: Update
     });
     */
 
     app.addRoute({
-        path: "/create/source/notebook",
+        path: "/create/object/notebook",
         component: Create
     });
 
-    app.source.addType({
+    app.object.addType({
         type: "notebook",
         title: "Notebook",
         list_title: "Notebooks",
@@ -32,14 +32,14 @@ function setup(app) {
     });
 
     // We eliminate the default header, since we will be displaying everything in a single card
-    app.source.addComponent({
+    app.object.addComponent({
         component: null, // Header,
         type: "notebook",
         key: "header"
     });
 
     // Add the notebook card
-    app.source.addComponent({
+    app.object.addComponent({
         component: Container,
         type: "notebook",
         key: "view",

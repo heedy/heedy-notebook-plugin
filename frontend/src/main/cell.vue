@@ -13,7 +13,7 @@
     <template v-else-if="cell.cell_type=='code'">
       <cell-code
         ref="code"
-        v-model="source"
+        v-model="object"
         :readonly="readonly"
         :count="cell.execution_count"
         @convert="convert"
@@ -27,13 +27,13 @@
     </template>
     <template v-else-if="cell.cell_type=='markdown'">
       <div v-if="!editing || readonly" v-on:dblclick="editing=true">
-        <execute-result :result="{'text/markdown': source}" />
+        <execute-result :result="{'text/markdown': object}" />
       </div>
 
       <cell-code
         v-else
         ref="code"
-        v-model="source"
+        v-model="object"
         :readonly="readonly"
         lang="markdown"
         @run="{editing=false;run()}"
@@ -73,17 +73,17 @@ export default {
     editing: false
   }),
   computed: {
-    source: {
+    object: {
       get() {
-        if (Array.isArray(this.cell.source)) {
-          return this.cell.source.join("");
+        if (Array.isArray(this.cell.object)) {
+          return this.cell.object.join("");
         }
-        return this.cell.source;
+        return this.cell.object;
       },
       set(v) {
         this.$emit("update", {
           ...this.cell,
-          source: v
+          object: v
         });
       }
     },
@@ -98,7 +98,7 @@ export default {
     convert(t) {
       let newcell = {
         key: this.cell.key,
-        source: this.cell.source,
+        object: this.cell.object,
         cell_type: t,
         metadata: {}
       };

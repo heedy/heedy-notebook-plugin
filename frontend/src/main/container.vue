@@ -1,7 +1,7 @@
 <template>
   <v-flex>
     <v-card>
-      <notebook-header :source="source" :readonly="readonly" />
+      <notebook-header :object="object" :readonly="readonly" />
       <div class="text-center" v-if="loading" style="padding-top: 20px; padding-bottom: 40px;">
         <v-progress-circular :size="50" color="primary" indeterminate></v-progress-circular>
       </div>
@@ -20,7 +20,7 @@ export default {
     Notebook
   },
   props: {
-    source: Object
+    object: Object
   },
   data: () => ({
     loading: true,
@@ -30,18 +30,18 @@ export default {
   computed: {
     contents: {
       get() {
-        console.log(this.$store.state.notebooks.notebooks[this.source.id]);
-        return this.$store.state.notebooks.notebooks[this.source.id] || [];
+        console.log(this.$store.state.notebooks.notebooks[this.object.id]);
+        return this.$store.state.notebooks.notebooks[this.object.id] || [];
       },
       set(v) {
         if (this.ws == null) {
           this.startWS();
         }
-        this.$store.commit("setNotebook", { id: this.source.id, notebook: v });
+        this.$store.commit("setNotebook", { id: this.object.id, notebook: v });
       }
     },
     readonly() {
-      let s = this.source.access.split(" ");
+      let s = this.object.access.split(" ");
       return !s.includes("*") && !s.includes("read");
     }
   },
@@ -54,9 +54,9 @@ export default {
       if (location.protocol == "http:") {
         wsproto = "ws:";
       }
-      console.log("Starting kernel websocket ", this.source.id);
+      console.log("Starting kernel websocket ", this.object.id);
       this.ws = new WebSocket(
-        `${wsproto}//${location.host}${location.pathname}api/heedy/v1/sources/${this.source.id}/kernel`
+        `${wsproto}//${location.host}${location.pathname}api/heedy/v1/objects/${this.object.id}/kernel`
       );
       this.ws.onmessage = msg => {
         console.log(msg);
@@ -73,6 +73,17 @@ export default {
             this.contents.cells[cellindex].outputs = [
               ...this.contents.cells[cellindex].outputs,
               { ...m["content"], output_type: "execute_result" }
+            ];
+            this.contents.cells[cellindex] = {
+              ...this.contents.cells[cellindex]
+            };
+            this.contents = { ...this.contents }; // Force a redraw
+
+            break;
+          case "display_data":
+            this.contents.cells[cellindex].outputs = [
+              ...this.contents.cells[cellindex].outputs,
+              { ...m["content"], output_type: "display_data" }
             ];
             this.contents.cells[cellindex] = {
               ...this.contents.cells[cellindex]
@@ -118,7 +129,7 @@ export default {
         parent_header: hdr,
         metadata: {},
         content: {
-          code: this.contents.cells[i].source,
+          code: this.contents.cells[i].object,
           silent: false
         }
       });
@@ -128,11 +139,11 @@ export default {
     }
   },
   watch: {
-    source(oldValue, newValue) {
+    object(oldValue, newValue) {
       if (oldValue.id != newValue.id) {
         this.loading = true;
         if (this.ws != null) {
-          console.log("Closing kernel ", this.source.id);
+          console.log("Closing kernel ", this.object.id);
           this.ws.close();
           this.ws = null;
         }
@@ -145,13 +156,13 @@ export default {
   },
   created() {
     this.$store.dispatch("readNotebook", {
-      id: this.source.id,
+      id: this.object.id,
       callback: () => (this.loading = false)
     });
   },
   beforeDestroy() {
     if (this.ws != null) {
-      console.log("Closing kernel ", this.source.id);
+      console.log("Closing kernel ", this.object.id);
       this.ws.close();
     }
   }

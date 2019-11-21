@@ -114,7 +114,7 @@
 #  - originate from pages served by this server (validated with XSRF cookie and
 #  token), or - authenticate with a token
 #
-#  Some anonymous compute resources still desire the ability to run code,
+#  Some anonymous compute reobjects still desire the ability to run code,
 #  completely without authentication. These services can disable all
 #  authentication and security checks, with the full knowledge of what that
 #  implies.
@@ -126,7 +126,7 @@
 #  very large, so you may want to disable it if you have a slow internet
 #  connection, or for offline use of the notebook.
 #
-#  When disabled, equations etc. will appear as their untransformed TeX source.
+#  When disabled, equations etc. will appear as their untransformed TeX object.
 #c.NotebookApp.enable_mathjax = True
 
 # extra paths to look for Javascript notebook extensions
@@ -226,7 +226,7 @@ c.NotebookApp.allow_password_change = False
 #c.NotebookApp.password_required = True
 
 # The port the notebook server will listen on.
-c.NotebookApp.port = 8887
+# c.NotebookApp.port = 8887
 
 # The number of additional ports to try if the specified port is not available.
 #c.NotebookApp.port_retries = 50
@@ -259,7 +259,7 @@ c.NotebookApp.port = 8887
 #
 #  Setting to an empty string disables authentication altogether, which is NOT
 #  RECOMMENDED.
-c.NotebookApp.token = 'mytoken'
+c.NotebookApp.token = 'todoChangeMeBeforeRelease'
 
 # Supply overrides for the tornado.web.Application that the Jupyter notebook
 #  uses.

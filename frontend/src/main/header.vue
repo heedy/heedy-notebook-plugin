@@ -2,8 +2,8 @@
   <div>
     <v-toolbar flat>
       <v-toolbar-title>
-        <h-icon :image="source.icon" :colorHash="source.id" :size="28" />
-        {{ source.name }}
+        <h-icon :image="object.icon" :colorHash="object.id" :size="28" />
+        {{ object.name }}
       </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-tooltip bottom>
@@ -37,7 +37,7 @@
               <v-icon>edit</v-icon>
             </v-btn>
           </template>
-          <span>Edit Source</span>
+          <span>Edit Object</span>
         </v-tooltip>
       </div>
     </v-toolbar>
@@ -46,7 +46,7 @@
 <script>
 export default {
   props: {
-    source: Object,
+    object: Object,
     readonly: Boolean
   }
 };
