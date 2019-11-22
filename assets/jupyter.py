@@ -53,7 +53,7 @@ class Server:
         }), headers=self.headers)
 
         if res.status != 201:
-            raise "Could not create notebook"
+            raise Exception("Could not create notebook")
         return
 
     async def contents(self, oid):
@@ -65,6 +65,20 @@ class Server:
             await self.create(oid)
             res = await self.s.get(nbloc, headers=self.headers)
         return res.content
+
+    async def save(self, oid, contents):
+        self._log.debug("Saving notebook %s", oid)
+        try:
+            os.makedirs(os.path.join(self.folder, oid))
+        except:
+            pass
+        nbloc = f"{self.url}/contents/{oid}/notebook.ipynb"
+        res = await self.s.put(nbloc, headers=self.headers, data=json.dumps({
+            "type": "notebook",
+            "content": contents}))
+        if res.status != 200 and res.status != 201:
+            raise Exception("Cound not save notebook")
+        return
 
     async def session(self, oid):
         self._log.debug("Reading session for %s", oid)
@@ -89,9 +103,10 @@ class Server:
 class Manager:
     _log = logging.getLogger("notebook.Manager")
 
-    def __init__(self, plugin, config_file, python=sys.executable):
+    def __init__(self, plugin, config_file, ipy_config_dir, python=sys.executable):
         self.python = python
         self.config_file = config_file
+        self.ipydir = ipy_config_dir
         self.p = plugin
         self.notebook_dir = os.path.join(
             self.p.config['data_dir'], 'notebooks')
@@ -125,6 +140,7 @@ class Manager:
 
         penv = os.environ.copy()
         penv["HEEDY_ACCESS_TOKEN"] = access_token
+        penv["IPYTHONDIR"] = self.ipydir
         self._log.debug(f"Starting server for {username} on port {port}")
         proc = await asyncio.create_subprocess_exec(self.python, "-m", "jupyter", "notebook",
                                                     f"--config={self.config_file}",

@@ -33,6 +33,15 @@ export default {
             if (q.hasOwnProperty("callback")) {
                 q.callback();
             }
+        },
+        saveNotebook: async function ({
+            state,
+            commit
+        }, q) {
+            console.log("Saving notebook", q.id);
+            let nb = state.notebooks[q.id];
+
+            let res = await api("PUT", `api/heedy/v1/objects/${q.id}/contents`, nb);
         }
     }
 }

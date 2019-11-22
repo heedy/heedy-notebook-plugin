@@ -8,7 +8,7 @@ import {
     terser
 } from "rollup-plugin-terser";
 
-//import glob from "glob";
+import glob from "glob";
 
 const plugin_name = "notebook"
 
@@ -67,7 +67,6 @@ function out(name, loc = "", format = "es") {
 export default [
     // The base files
     out("main.js")
-];
-/*.concat(glob.sync("dist/*.js", {
+].concat(glob.sync("dist/*.js", {
     cwd: "./src"
-}).map(a => out(a, "../")));;*/
+}).map(a => out(a, "../")));

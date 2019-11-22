@@ -16,7 +16,8 @@ l = logging.getLogger("notebook")
 p = Plugin()
 
 config_file = os.path.join(p.config['plugin_dir'], 'jupyter_heedy_config.py')
-m = Manager(p, config_file)
+ipy_config = os.path.join(p.config['plugin_dir'], 'ipynb')
+m = Manager(p, config_file, ipy_config)
 
 routes = web.RouteTableDef()
 
@@ -30,11 +31,22 @@ async def contents(request):
     contents = await server.contents(r["object"])
 
     sr = web.StreamResponse()
+    sr.content_type = "application/json"
     await sr.prepare(request)
     async for data in contents.iter_any():
         await sr.write(data)
     await sr.write_eof()
     return sr
+
+
+@routes.put("/contents")
+async def contents(request):
+    if not p.hasAccess(request, "run"):
+        return web.Response(status=403, body="Not permitted")
+    r = p.objectRequest(request)
+    server = await m.get(r["owner"])
+    await server.save(r["object"], await request.json())
+    return web.json_response({"response": "ok"})
 
 
 @routes.get("/session")
@@ -46,6 +58,7 @@ async def session(request):
     contents = await server.session(r["object"])
 
     sr = web.StreamResponse()
+    sr.content_type = "application/json"
     await sr.prepare(request)
     async for data in contents.iter_any():
         await sr.write(data)

@@ -7,16 +7,13 @@
     ></div>
     <div v-else-if="result['text/markdown'] !== undefined" v-html="markdown"></div>
     <img v-else-if="imgv!==null" :src="imgv" />
-    <codemirror
-      v-else-if="Object.keys(result).length==1 && result['text/plain']!==undefined"
-      :options="cmOptions"
-      :value="result['text/plain']"
-    />
-    <div v-else>{{JSON.stringify(result) }}</div>
+    <pre v-else-if="Object.keys(result).length==1 && result['text/plain']!==undefined">{{ this.result["text/plain"] }}</pre>
+    <pre v-else>{{JSON.stringify(this.result) }}</pre>
   </div>
 </template>
 <script>
 import { md } from "../../dist/markdown-it.mjs";
+
 export default {
   props: {
     result: Object

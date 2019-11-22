@@ -8,6 +8,14 @@
       <v-spacer></v-spacer>
       <v-tooltip bottom>
         <template #activator="{on}">
+          <v-btn icon v-on="on" @click="save">
+            <v-icon size="110%">fas fa-save</v-icon>
+          </v-btn>
+        </template>
+        <span>Save</span>
+      </v-tooltip>
+      <v-tooltip bottom>
+        <template #activator="{on}">
           <v-btn icon v-on="on">
             <v-icon size="110%">fas fa-download</v-icon>
           </v-btn>
@@ -48,6 +56,11 @@ export default {
   props: {
     object: Object,
     readonly: Boolean
+  },
+  methods: {
+    save() {
+      this.$store.dispatch("saveNotebook", { id: this.object.id });
+    }
   }
 };
 </script>

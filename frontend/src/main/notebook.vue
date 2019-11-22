@@ -19,7 +19,7 @@
 <script>
 import Draggable from "../../dist/draggable.mjs";
 import Cell from "./cell.vue";
-import uuidv4 from "uuid/v4";
+import { uuidv4 } from "../../dist/uuid.mjs";
 export default {
   model: {
     prop: "contents",
@@ -64,7 +64,7 @@ export default {
     addCell(i) {
       this.contents.cells.splice(i, 0, {
         key: uuidv4(),
-        object: "",
+        source: "",
         cell_type: "code",
         metadata: {},
         outputs: [],

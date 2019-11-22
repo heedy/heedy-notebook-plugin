@@ -68,50 +68,32 @@ export default {
           console.error("Couldn't find cell index", msg);
           return;
         }
+        let applycontents = () => {
+          if (m["content"]["execution_count"] !== undefined) {
+            this.contents.cells[cellindex].execution_count =
+              m["content"]["execution_count"];
+          }
+          this.contents.cells[cellindex].outputs = [
+            ...this.contents.cells[cellindex].outputs,
+            { ...m["content"], output_type: m["header"]["msg_type"] }
+          ];
+          this.contents.cells[cellindex] = {
+            ...this.contents.cells[cellindex]
+          };
+          this.contents = { ...this.contents }; // Force a redraw
+        };
         switch (m["header"]["msg_type"]) {
           case "execute_result":
-            this.contents.cells[cellindex].outputs = [
-              ...this.contents.cells[cellindex].outputs,
-              { ...m["content"], output_type: "execute_result" }
-            ];
-            this.contents.cells[cellindex] = {
-              ...this.contents.cells[cellindex]
-            };
-            this.contents = { ...this.contents }; // Force a redraw
-
+            applycontents();
             break;
           case "display_data":
-            this.contents.cells[cellindex].outputs = [
-              ...this.contents.cells[cellindex].outputs,
-              { ...m["content"], output_type: "display_data" }
-            ];
-            this.contents.cells[cellindex] = {
-              ...this.contents.cells[cellindex]
-            };
-            this.contents = { ...this.contents }; // Force a redraw
-
+            applycontents();
             break;
           case "stream":
-            this.contents.cells[cellindex].outputs = [
-              ...this.contents.cells[cellindex].outputs,
-              { ...m["content"], output_type: "stream" }
-            ];
-            this.contents.cells[cellindex] = {
-              ...this.contents.cells[cellindex]
-            };
-            this.contents = { ...this.contents }; // Force a redraw
-
+            applycontents();
             break;
           case "error":
-            this.contents.cells[cellindex].outputs = [
-              ...this.contents.cells[cellindex].outputs,
-              { text: m["content"]["traceback"].join(), output_type: "stream" }
-            ];
-            this.contents.cells[cellindex] = {
-              ...this.contents.cells[cellindex]
-            };
-            this.contents = { ...this.contents }; // Force a redraw
-
+            applycontents();
             break;
         }
       };
@@ -127,10 +109,19 @@ export default {
       let msg = JSON.stringify({
         header: hdr,
         parent_header: hdr,
-        metadata: {},
+        metadata: {
+          cellId: this.contents.cells[i].key,
+          deletedCells: [],
+          recordTiming: false
+        },
+        channel: "shell",
+        buffers: [],
         content: {
-          code: this.contents.cells[i].object,
-          silent: false
+          code: this.contents.cells[i].source,
+          silent: false,
+          allow_stdin: false,
+          stop_on_error: true,
+          store_history: true
         }
       });
       console.log(msg);
