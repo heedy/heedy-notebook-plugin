@@ -99,6 +99,7 @@ export default {
       };
     },
     run(i) {
+      console.log("START WS");
       this.startWS();
       let hdr = {
         msg_id: this.contents.cells[i].key + "_" + uuidv4(),
@@ -124,8 +125,13 @@ export default {
           store_history: true
         }
       });
-      console.log(msg);
-      this.ws.send(msg);
+      console.log("SENDING", msg);
+      console.log(this.ws);
+      if (!this.ws.readyState == 1) {
+        this.ws.onopen = () => this.ws.send(msg);
+      } else {
+        this.ws.send(msg);
+      }
       console.log("RUN", i);
     }
   },

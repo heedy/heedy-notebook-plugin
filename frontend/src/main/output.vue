@@ -30,6 +30,9 @@ export default {
   },
   methods: {
     ansi(txt) {
+      if (Array.isArray(txt)) {
+        txt = txt.join("\n");
+      }
       return ansi_up.ansi_to_html(txt);
     }
   },

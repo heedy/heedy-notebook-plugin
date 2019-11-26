@@ -73,10 +73,12 @@ export default {
       this.$emit("update", { ...this.contents });
     },
     run(i) {
+      console.log("Dispatching run");
       // Dispatch the run event
       if (this.cells[i].cell_type == "code") {
         this.$emit("run", i);
       }
+      console.log("DONE DISPATCH");
 
       // Clear cell contents
       this.cells[i] = { ...this.cells[i], outputs: [] };
