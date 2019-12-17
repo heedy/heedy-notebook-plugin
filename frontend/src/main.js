@@ -7,7 +7,8 @@ function setup(app) {
 
     app.object.addCreator({
         key: "notebook",
-        text: "Notebook",
+        title: "Notebook",
+        description: "Analyze your data with a Python notebook environment",
         icon: "code",
         route: "/create/object/notebook"
     });

@@ -21,7 +21,64 @@ m = Manager(p, config_file, ipy_config)
 
 routes = web.RouteTableDef()
 
+schema = """
+CREATE TABLE notebook_cells (
+    objectid VARCHAR NOT NULL,
+    cellid VARCHAR PRIMARY KEY,
+    cellindex INTEGER NOT NULL,
+    code VARCHAR NOT NULL,
+    output VARCHAR NOT NULL DEFAULT '[]',
 
+    CONSTRAINT valid_output CHECK (json_valid(output) AND json_type(output)='array'),
+
+    CONSTRAINT notebook_object
+        FOREIGN KEY(objectid)
+        REFERENCES objects(id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT nextcellid
+        FOREIGN KEY(nextcell)
+        REFERENCS notebook_cells(cellid)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+
+);
+"""
+
+def insert(tx,objectid, after,code):
+    cellid = "newcelluuidv4"
+
+
+    # Insert into data
+    tx.exec("UPDATE notebooks SET output=json_insert(output,'$[' || json_array_length(output) || ']',?) WHERE cellid=?")
+    tx.exec("INSERT INTO notebooks(objectid,cellid,nextcell,code,output) VALUES (?,)",objectid,cellid,v)
+
+    # Need a trigger on insert at index i UPDATE where index > i, -> i+1. Same for removed cell (update index i -> i-1)
+    # I can explicity do this in a transaction, or add a trigger to do it automatically on any insert
+    tx.exec("UPDATE notebooks SET cellindex = cellindex+1 WHERE cellindex >= i AND objectid=?")
+    tx.exec("INSERT INTO notebooks() ...")
+
+    # Now append:
+    tx.exec("INSERT INTO notebooks SET cellindex = (SELECT max(cellindex)+1 FROM notebooks where objectid=?)")
+
+    # Finally delete
+    tx.exec("UPDATE notebooks SET cellindex = cellindex-1 WHERE cellindex >= i AND objectid=?")
+    tx.exec("DELETE FROM notebooks WHERE cellid=?")
+
+def fireevent():
+    p.fire("notebook_cell_update",objectid, cellid, index, code,cleardata : bool)
+    p.fire("notebook_cell_create",objectid, cellid, index, code)
+    p.fire("notebook_cell_delete")
+    p.fire("notebook_cell_data",objectid, cellid, data)
+
+@routes.get("/notebook")
+async def notebook(request):
+    if not p.hasAccess(request, "read"):
+        return web.Response(status=403, body="Not permitted")
+    r = p.objectRequest(request)
+
+"""
 @routes.get("/contents")
 async def contents(request):
     if not p.hasAccess(request, "read"):
@@ -134,3 +191,4 @@ async def runme():
 
 asyncio.ensure_future(runme())
 asyncio.get_event_loop().run_forever()
+"""
