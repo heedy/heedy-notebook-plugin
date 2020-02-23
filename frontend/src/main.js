@@ -46,6 +46,29 @@ function setup(app) {
         key: "view",
         weight: 5
     });
+
+    // Finally, subscribe to notebook events for our own user
+    app.websocket.subscribe("notebook_cell_update", {
+        event: "notebook_cell_update",
+        user: app.info.user.username
+    }, (e) => app.store.commit("applyNotebookUpdates", {
+        id: e.object,
+        updates: [e.data]
+    }));
+    app.websocket.subscribe("notebook_cell_delete", {
+        event: "notebook_cell_delete",
+        user: app.info.user.username
+    }, (e) => app.store.commit("applyNotebookUpdates", {
+        id: e.object,
+        updates: [{
+            ...e.data,
+            delete: true
+        }]
+    }));
+    app.websocket.subscribe("notebook_cell_outputs", {
+        event: "notebook_cell_outputs",
+        user: app.info.user.username
+    }, (e) => console.log("event:", e));
 }
 
 export default setup;

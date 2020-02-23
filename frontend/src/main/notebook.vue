@@ -1,16 +1,16 @@
 <template>
   <v-flex>
-    <draggable v-model="cells" :disabled="readonly">
+    <draggable :value="cells" :disabled="readonly" @end="onMove">
       <cell
-        v-for="(c,i) in contents.cells"
-        :ref="c.key"
-        :key="c.key"
+        v-for="c in cells"
+        :ref="c.cell_id"
+        :key="c.cell_id"
         :cell="c"
-        @update="(v) => {contents.cells[i]=v;update();}"
-        @delete="() => {contents.cells.splice(i,1);update()}"
-        @addAbove="() => addCell(i)"
-        @addBelow="() => addCell(i+1)"
-        @run="(v)=> run(i)"
+        @update="(v) => $emit('update',v)"
+        @delete="() => $emit('update',{cell_id: c.cell_id,delete: true})"
+        @addAbove="() => $emit('update',{cell_id: mkid(),cell_index: c.cell_index})"
+        @addBelow="() => $emit('update',{cell_id: mkid(),cell_index: c.cell_index+1})"
+        @run="(v)=> run(c.cell_id,v)"
         :readonly="readonly"
       />
     </draggable>
@@ -19,7 +19,56 @@
 <script>
 import Draggable from "../../dist/draggable.mjs";
 import Cell from "./cell.vue";
-import { uuidv4 } from "../../dist/uuid.mjs";
+import uuidv4 from "uuid/v4";
+export default {
+  components: {
+    Cell,
+    Draggable
+  },
+  props: {
+    contents: Object,
+    readonly: Boolean
+  },
+  computed: {
+    cells() {
+      let c = Object.values(this.contents);
+      c.sort((a, b) => a["cell_index"] - b["cell_index"]);
+      return c;
+    }
+  },
+  watch: {
+    contents(nv, ov) {
+      // Make sure that there is at least the initial starting cell
+      if (Object.keys(nv).length == 0 && !this.readonly) {
+        this.$emit("update", { cell_id: uuidv4() });
+      }
+    }
+  },
+  methods: {
+    mkid() {
+      return uuidv4();
+    },
+    onMove(evt) {
+      console.log("Cell drag-drop", evt);
+      this.$emit("update", {
+        cell_id: this.cells[evt.oldIndex].cell_id,
+        cell_index: evt.newIndex
+      });
+    },
+    run(cell_id, source) {
+      this.$emit("run", {
+        cell_id: cell_id,
+        source: source
+      });
+    }
+  },
+  created() {
+    if (this.cells.length == 0 && !this.readonly) {
+      this.$emit("update", { cell_id: uuidv4() });
+    }
+  }
+};
+/*
 export default {
   model: {
     prop: "contents",
@@ -102,4 +151,5 @@ export default {
     }
   }
 };
+*/
 </script>

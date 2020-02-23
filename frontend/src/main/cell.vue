@@ -15,7 +15,7 @@
         ref="code"
         v-model="source"
         :readonly="readonly"
-        :count="cell.execution_count"
+        :count="execution_count"
         @convert="convert"
         @delete="$emit('delete')"
         @addAbove="$emit('addAbove')"
@@ -53,10 +53,6 @@ import CellCode from "./code.vue";
 import ExecuteResult from "./result.vue";
 import CellOutput from "./output.vue";
 export default {
-  model: {
-    prop: "cell",
-    event: "update"
-  },
   components: {
     CellCode,
     ExecuteResult,
@@ -87,6 +83,12 @@ export default {
         });
       }
     },
+    execution_count() {
+      if (this.cell.metadata.execution_count !== undefined) {
+        return this.cell.metadata.execution_count;
+      }
+      return 0;
+    },
     collapsed() {
       if (this.cell.metadata.collapsed !== undefined) {
         return this.cell.metadata.collapsed;
@@ -97,14 +99,13 @@ export default {
   methods: {
     convert(t) {
       let newcell = {
-        key: this.cell.key,
+        cell_id: this.cell.cell_id,
         source: this.cell.source,
         cell_type: t,
         metadata: {}
       };
       if (t == "code") {
         newcell.outputs = [];
-        newcell.execution_count = null;
       } else if (t == "markdown") {
         this.editing = true;
       }
@@ -121,7 +122,7 @@ export default {
       });
     },
     run() {
-      this.$emit("run", this.cell);
+      this.$emit("run", this.source);
     },
     focus() {
       if (this.collapsed) {

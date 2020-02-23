@@ -57,11 +57,7 @@ export default {
       toCreate.description = this.description;
       toCreate.icon = this.$refs.iconEditor.getImage();
 
-      let result = await this.$app.api(
-        "POST",
-        `api/heedy/v1/objects`,
-        toCreate
-      );
+      let result = await this.$app.api("POST", `api/objects`, toCreate);
 
       if (!result.response.ok) {
         this.alert = result.data.error_description;
