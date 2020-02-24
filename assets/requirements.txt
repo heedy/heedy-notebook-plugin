@@ -1,3 +1,5 @@
+
+heedy>=0.0.7
 aiosqlite
 aiohttp
 jupyter

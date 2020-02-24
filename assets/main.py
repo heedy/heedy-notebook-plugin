@@ -5,23 +5,21 @@ import os
 from heedy import Plugin
 import signal
 import json
-import pprint
 import logging
 import aiosqlite
 import uuid
 
-#from manager import Manager
+from manager import Manager
 
 logging.basicConfig(level=logging.DEBUG)
 l = logging.getLogger("notebook")
 
 p = Plugin()
 
-"""
+
 config_file = os.path.join(p.config['plugin_dir'], 'jupyter_heedy_config.py')
 ipy_config = os.path.join(p.config['plugin_dir'], 'ipynb')
-m = Manager(p, config_file, ipy_config)
-"""
+
 
 routes = web.RouteTableDef()
 
@@ -158,7 +156,7 @@ async def save_notebook_modifications(object_id,data):
                     setme = ""
                     outputs = []
                     if "source" in cell:
-                        setme = "source=?,outputs='[]'"
+                        setme = "source=?"
                         outputs.append(cell["source"])
                     if "metadata" in cell:
                         if setme != "":
@@ -229,7 +227,7 @@ async def notebook_cell_outputs(object_id, cell_id, data):
         await db.commit()
 
     await p.fire({
-        "event": "notebook_cell_outputs",
+        "event": "notebook_cell_output",
         "object": object_id,
         "data": {
             "cell_id": cell_id
@@ -246,7 +244,7 @@ async def notebook_cell_output_clear(object_id, cell_id):
         await db.commit()
 
     await p.fire({
-        "event": "notebook_cell_outputs",
+        "event": "notebook_cell_output",
         "object": object_id,
         "data": {
             "cell_id": cell_id
@@ -288,6 +286,23 @@ async def read_cell(object_id,cell_id):
                     "cell_type": row[5]
                 }
 
+
+async def kernel_state_update(object_id,state):
+    await p.fire({
+        "event": "notebook_kernel_state",
+        "object": object_id,
+        "data": {
+            "state": state
+        }
+    })
+
+async def kernel_cell_output(object_id,cell_id,data):
+    await notebook_cell_outputs(object_id,cell_id,data)
+
+m = Manager(p, config_file, ipy_config,kernelStateChange=kernel_state_update,kernelOutput=kernel_cell_output)
+
+
+
 @routes.get("/notebook")
 async def notebook(request):
     if not p.hasAccess(request, "read"):
@@ -309,23 +324,8 @@ async def update_notebook(request):
     #    l.error(str(e))
     #    return web.Response(status=500, body=str(e))
 
-@routes.post("/notebook/{cellid}")
-async def run_cell(request):
-    if not p.hasAccess(request, "run"):
-        return web.Response(status=403, body="Not permitted")
-    r = p.objectRequest(request)
-    data = await request.json()
-    cell_content = await read_cell(r["object"],request.match_info['cellid'])
-    #print(cell_content,data["source"])
-    if cell_content["source"]!=data["source"]:
-        l.error("Cell source does not match")
-        return web.Response(status=403, body="Source does not match")
-    src = cell_content["source"]
-    l.info(f"RUN {src}")
-    return web.json_response("ok")
-
-@routes.get("/notebook/{cellid}")
-async def run_cell(request):
+@routes.get("/notebook/cell/{cellid}")
+async def get_cell(request):
     if not p.hasAccess(request, "read"):
         return web.Response(status=403, body="Not permitted")
     r = p.objectRequest(request)
@@ -334,8 +334,102 @@ async def run_cell(request):
     
     return web.json_response(cell_content)
 
+@routes.post("/notebook/kernel")
+async def run_cell(request):
+    if not p.hasAccess(request, "run"):
+        return web.Response(status=403, body="Not permitted")
+    r = p.objectRequest(request)
+    data = await request.json()
+    cell_content = await read_cell(r["object"],data['cell_id'])
+    #print(cell_content,data["source"])
+    if cell_content["source"]!=data["source"]:
+        l.error("Cell source does not match")
+        return web.Response(status=403, body="Source does not match")
+    src = cell_content["source"]
+    l.info(f"RUN {src}")
+    await notebook_cell_output_clear(r["object"],data["cell_id"])
+    server = await m.get(r["owner"])
+    kernel = await server.kernel(r["object"])
+    await kernel.run(data["cell_id"],src)
+    return web.json_response("ok")
+
+@routes.delete("/notebook/kernel")
+async def close_kernel(request):
+    if not p.hasAccess(request, "run"):
+        return web.Response(status=403, body="Not permitted")
+    
+    r = p.objectRequest(request)
+    server = await m.get(r["owner"])
+    await server.close_kernel(r["object"])
+    
+    return web.json_response("ok")
+
+@routes.patch("/notebook/kernel")
+async def interrupt_kernel(request):
+    if not p.hasAccess(request, "run"):
+        return web.Response(status=403, body="Not permitted")
+    
+    r = p.objectRequest(request)
+    server = await m.get(r["owner"])
+    await server.interrupt_kernel(r["object"])
+    
+    return web.json_response("ok")
+
+
+@routes.get("/notebook/kernel")
+async def kernel_state(request):
+    if not p.hasAccess(request, "run"):
+        return web.Response(status=403, body="Not permitted")
+    
+    r = p.objectRequest(request)
+
+    if "start" in request.rel_url.query:
+        server = await m.get(r["owner"])
+        kernel = await server.kernel(r["object"])
+
+        return web.json_response(kernel.state)
+    
+    if not r["owner"] in m.servers:
+        return web.json_response("off")
+    server = await m.get(r["owner"])
+    return web.json_response(await server.state(r["object"]))
 
 """
+
+
+
+    r = p.objectRequest(request)
+    server = await m.get(r["owner"])
+    ws_server = await server.kernel(r["object"])
+
+    ws_client = web.WebSocketResponse()
+    await ws_client.prepare(request)
+
+    async def ws_forward(ws_from, ws_to):
+        async for msg in ws_from:
+            #logger.info('>>> msg: %s',pprint.pformat(msg))
+            mt = msg.type
+            md = msg.data
+            if mt == aiohttp.WSMsgType.TEXT:
+                await ws_to.send_str(md)
+            elif mt == aiohttp.WSMsgType.BINARY:
+                await ws_to.send_bytes(md)
+            elif mt == aiohttp.WSMsgType.PING:
+                await ws_to.ping()
+            elif mt == aiohttp.WSMsgType.PONG:
+                await ws_to.pong()
+            elif ws_to.closed:
+                await ws_to.close(source=ws_to.close_source, message=msg.extra)
+            else:
+                raise ValueError(
+                    'unexpected message type: %s', pprint.pformat(msg))
+
+        # keep forwarding websocket data in both directions
+    await asyncio.wait([ws_forward(ws_server, ws_client), ws_forward(ws_client, ws_server)], return_when=asyncio.FIRST_COMPLETED)
+
+    return ws_client
+
+
 @routes.get("/contents")
 async def contents(request):
     if not p.hasAccess(request, "read"):
@@ -380,41 +474,7 @@ async def session(request):
     return sr
 
 
-@routes.get("/kernel")
-async def kernel(request):
-    if not p.hasAccess(request, "run"):
-        return web.Response(status=403, body="Not permitted")
 
-    r = p.objectRequest(request)
-    server = await m.get(r["owner"])
-    ws_server = await server.kernel(r["object"])
-
-    ws_client = web.WebSocketResponse()
-    await ws_client.prepare(request)
-
-    async def ws_forward(ws_from, ws_to):
-        async for msg in ws_from:
-            #logger.info('>>> msg: %s',pprint.pformat(msg))
-            mt = msg.type
-            md = msg.data
-            if mt == aiohttp.WSMsgType.TEXT:
-                await ws_to.send_str(md)
-            elif mt == aiohttp.WSMsgType.BINARY:
-                await ws_to.send_bytes(md)
-            elif mt == aiohttp.WSMsgType.PING:
-                await ws_to.ping()
-            elif mt == aiohttp.WSMsgType.PONG:
-                await ws_to.pong()
-            elif ws_to.closed:
-                await ws_to.close(source=ws_to.close_source, message=msg.extra)
-            else:
-                raise ValueError(
-                    'unexpected message type: %s', pprint.pformat(msg))
-
-        # keep forwarding websocket data in both directions
-    await asyncio.wait([ws_forward(ws_server, ws_client), ws_forward(ws_client, ws_server)], return_when=asyncio.FIRST_COMPLETED)
-
-    return ws_client
 """
 
 app = web.Application()
@@ -425,7 +485,7 @@ async def shutdown():
     l.info("Shutting down")
     await app.shutdown()
     await app.cleanup()
-    # await m.close()
+    await m.close()
     l.info("Closed")
     asyncio.get_event_loop().stop()
 

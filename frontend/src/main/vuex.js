@@ -4,7 +4,8 @@ import api from "../../api.mjs";
 
 
 import updateNotebook, {
-    addUpdate
+    addUpdate,
+    deduplicateUpdate
 } from "./updateNotebook.js";
 
 export default {
@@ -18,7 +19,8 @@ export default {
             } else {
                 Vue.set(state.notebooks, v.id, {
                     notebook: v.notebook,
-                    updates: []
+                    updates: [],
+                    state: "unknown"
                 });
             }
         },
@@ -26,14 +28,24 @@ export default {
             Vue.set(state.notebooks[v.id], "updates", addUpdate(state.notebooks[v.id].updates, v.data));
         },
         applyNotebookUpdates(state, v) {
+            if (state.notebooks[v.id] === undefined) {
+                return; // Don't apply updates to notebooks we're not holding in memory
+            }
             let newNotebook = {
                 notebook: updateNotebook(state.notebooks[v.id].notebook, v.updates),
-                updates: state.notebooks[v.id].updates
+                updates: deduplicateUpdate(state.notebooks[v.id].notebook, state.notebooks[v.id].updates, v.updates),
+                state: state.notebooks[v.id].state
             };
             if ("clear" in v) {
                 newNotebook.updates = []
             }
             Vue.set(state.notebooks, v.id, newNotebook);
+        },
+        setNotebookKernelState(state, v) {
+            if (state.notebooks[v.id] === undefined) {
+                return; // Don't apply updates to notebooks we're not holding in memory
+            }
+            Vue.set(state.notebooks[v.id], "state", v.state);
         }
     },
     actions: {
@@ -89,9 +101,31 @@ export default {
                 commit("applyNotebookUpdates", {
                     id: q.id,
                     clear: true,
-                    updates: nb
+                    updates: state.notebooks[q.id].updates // Updates might have already been deduplicated
                 });
             }
+        },
+        getNotebookCellOutput: async function ({
+            state,
+            commit
+        }, q) {
+            if (state.notebooks[q.id] === undefined) {
+                return;
+            }
+            let res = await api("GET", `api/objects/${q.id}/notebook/cell/${q.cell_id}`);
+            if (!res.response.ok) {
+                commit("alert", {
+                    type: "error",
+                    text: res.data.error_description
+                });
+                return
+
+            }
+            commit("applyNotebookUpdates", {
+                id: q.id,
+                updates: [res.data]
+            });
+
         },
         runNotebookCell: async function ({
             state,
@@ -111,16 +145,15 @@ export default {
                 }
                 commit("applyNotebookUpdates", {
                     id: q.id,
-                    clear: true,
-                    updates: nb
+                    // clear: true, - the updates should get deduplicated
+                    updates: state.notebooks[q.id].updates // Updates might have already been deduplicated
                 });
             }
 
 
-            console.log("Running cell", q.id);
-            console.log(q.data);
+            console.log("Running cell", q.id, q.data);
 
-            let res = await api("POST", `api/objects/${q.id}/notebook/${q.data.cell_id}`, q.data);
+            let res = await api("POST", `api/objects/${q.id}/notebook/kernel`, q.data);
             if (!res.response.ok) {
                 commit("alert", {
                     type: "error",

@@ -7,6 +7,9 @@ import logging
 import aiohttp
 import json
 from contextlib import closing
+import pprint
+import datetime
+import uuid
 
 
 def free_port():
@@ -29,72 +32,210 @@ async def wait_until_open(port):
             timeout -= 0.1
             await asyncio.sleep(0.1)
 
+# This code is run to initialize the kernel
+kernel_init_code = """# Initialize the notebook for use with Heedy
+
+# Use the seaborn style
+plt.style.use("seaborn")
+
+# Change the figure size to something more reasonable
+# https://github.com/ipython/ipython/issues/11098
+# ugh
+plt.rcParams["figure.figsize"] = (10, 8)
+
+import os
+import heedy
+h = heedy.App(os.getenv("HEEDY_ACCESS_TOKEN"),os.getenv("HEEDY_SERVER_URL")).owner
+"""
+
+class Kernel:
+
+    def __init__(self,session,url,headers,kernel_id,oid,state_update,output_update):
+        self.state = "starting"
+        self.s = session
+        self.url = url
+        self.headers = headers
+        self.id = kernel_id
+        self.oid = oid
+        self.q = asyncio.Queue()
+        self.state_update = state_update
+        self.output_update = output_update
+        self._log = logging.getLogger(f"notebook.Server:{oid}")
+        asyncio.create_task(self.websocket())
+
+        self.ws = None
+        self.ws_wait = asyncio.Event()
+
+
+    async def close(self):
+        # This is to be called from server, since it doesn't remove the kernel from the server's kernel dict
+        pass
+
+    async def interrupt(self):
+        pass
+
+    async def run(self,cell_id,code):
+        header = {
+            "msg_id": cell_id + "_" + uuid.uuid4().hex,
+            "session": self.oid,
+            "date": datetime.datetime.now().isoformat(),
+            "msg_type": "execute_request"
+        }
+        msg = {
+            "header": header,
+            "parent_header": header,
+            "metadata": {
+                "recordTiming": False,
+                "deletedCells": [],
+            },
+            "channel": "shell",
+            "buffers": [],
+            "content": {
+                "code": code,
+                "silent": False,
+                "allow_stdin": False,
+                "stop_on_error": True,
+                "store_history": True
+            }
+        }
+        if self.ws is None:
+            await self.ws_wait.wait()
+        await self.ws.send_str(json.dumps(msg))
+
+    async def websocket(self):
+        self._log.debug("Running websocket")
+        ws = await self.s.ws_connect(f"{self.url}/kernels/{self.id}/channels?session_id={self.oid}", headers=self.headers)
+
+        # Send the initialization message
+        header = {
+            "msg_id": uuid.uuid4().hex,
+            "session": self.oid,
+            "date": datetime.datetime.now().isoformat(),
+            "msg_type": "execute_request"
+        }
+        msg = {
+            "header": header,
+            "parent_header": header,
+            "metadata": {
+                "recordTiming": False,
+                "deletedCells": [],
+            },
+            "channel": "shell",
+            "buffers": [],
+            "content": {
+                "code": kernel_init_code,
+                "silent": True,
+                "allow_stdin": False,
+                "stop_on_error": True,
+                "store_history": True
+            }
+        }
+        await ws.send_str(json.dumps(msg))
+
+        self.ws = ws
+        self.ws_wait.set()
+        
+        # Continue processing messages
+        async for msg in ws:
+            # self._log.debug('>>> full_msg: %s',pprint.pformat(msg))
+            mt = msg.type
+            md = msg.data
+            if mt == aiohttp.WSMsgType.TEXT:
+                
+                # Now see what type of message we got
+                data = json.loads(md)
+                self._log.debug('>>> msg: %s',pprint.pformat(data))
+                msg_type = data["msg_type"]
+                if msg_type == "status":
+                    self.state = data["content"]["execution_state"]
+                    self._log.debug(f"Kernel state: {self.state}")
+                    await self.state_update(self.oid,self.state)
+                elif msg_type in ["execute_result","display_data","stream","error"]:
+                    output = data["content"]
+                    output["output_type"] = msg_type
+
+                    # Get the cell ID
+                    cell_id = data["parent_header"]["msg_id"].split("_")[0]
+                    self._log.debug(f"Output {pprint.pformat(output)}")
+                    await self.output_update(self.oid,cell_id,output)
+
+                
+            elif mt == aiohttp.WSMsgType.PING:
+                await ws.pong()
+            elif ws.closed:
+                return
+            else:
+                raise ValueError(
+                    'unexpected message type: %s', pprint.pformat(msg))
+
+
 
 class Server:
-    _log = logging.getLogger("notebook.Server")
+    
 
-    def __init__(self, folder, port, headers):
+    def __init__(self, folder, port, headers,username="",onStateChange= lambda x,y:print(x,y),onOutput=lambda x,y,z : print(x,y,z)):
         self.port = port
         self.folder = folder
         self.headers = headers
+        self.username = username
+        self.onStateChange = onStateChange
+        self.onOutput = onOutput
+        self._log = logging.getLogger(f"notebook.Server:{username}")
         self.s = aiohttp.ClientSession()
         self.url = f"http://localhost:{self.port}/api"
+        # The kernels
+        self.kernels = {}
 
-    async def create(self, oid):
-        self._log.debug("Creating notebook %s", oid)
-        # Create the holding directory
-        try:
-            os.makedirs(os.path.join(self.folder, oid))
-        except:
-            pass
-
-        res = await self.s.put(f"{self.url}/contents/{oid}/notebook.ipynb", data=json.dumps({
-            "type": "notebook"
-        }), headers=self.headers)
-
-        if res.status != 201:
-            raise Exception("Could not create notebook")
-        return
-
-    async def contents(self, oid):
-        self._log.debug("Reading notebook %s", oid)
-        nbloc = f"{self.url}/contents/{oid}/notebook.ipynb"
-        res = await self.s.get(nbloc, headers=self.headers)
-        if res.status == 404:
-            # The notebook doesn't exist - create it, and the read again
-            await self.create(oid)
-            res = await self.s.get(nbloc, headers=self.headers)
-        return res.content
-
-    async def save(self, oid, contents):
-        self._log.debug("Saving notebook %s", oid)
-        try:
-            os.makedirs(os.path.join(self.folder, oid))
-        except:
-            pass
-        nbloc = f"{self.url}/contents/{oid}/notebook.ipynb"
-        res = await self.s.put(nbloc, headers=self.headers, data=json.dumps({
-            "type": "notebook",
-            "content": contents}))
-        if res.status != 200 and res.status != 201:
-            raise Exception("Cound not save notebook")
-        return
-
-    async def session(self, oid):
-        self._log.debug("Reading session for %s", oid)
-        res = await self.s.post(f"{self.url}/sessions", headers=self.headers, data=json.dumps({
-            "path": f"{oid}/notebook.ipynb",
-            "type": "notebook",
-            "kernel": {"name": "python3"}
-        }))
-        return res.content
-
+    
     async def kernel(self, oid):
-        sess = json.loads(await (await self.session(oid)).read())
-        kid = sess["kernel"]["id"]
-        sid = sess["id"]
-        self._log.debug("Opening kernel websocket for %s", oid)
-        return await self.s.ws_connect(f"{self.url}/kernels/{kid}/channels?session_id={sid}", headers=self.headers)
+        # Return an existing kernel if it is already running
+        if oid in self.kernels:
+            # Could be initializing the kernel, so wait on the event
+            await self.kernels[oid]["event"].wait()
+            if not oid in self.kernels:
+                return self.kernel(oid)
+            return self.kernels[oid]["kernel"]
+
+        kernel_obj = {
+            "event": asyncio.Event()
+        }
+
+        self.kernels[oid] = kernel_obj
+
+        # Create a new kernel
+        res = await self.s.post(f"{self.url}/kernels",headers=self.headers,data=json.dumps({
+            "name": "python3"
+        }))
+        kernel_response = await res.json()
+        self._log.debug(f"Started kernel {kernel_response['id']} for {oid}")
+        k = Kernel(self.s,self.url,self.headers,kernel_response["id"],oid,self.onStateChange,self.onOutput)
+        kernel_obj["kernel"] = k
+        kernel_obj["event"].set()
+        return k
+        
+        #self._log.debug("Opening kernel websocket for %s", oid)
+        #return await self.s.ws_connect(f"{self.url}/kernels/{kid}/channels?session_id={sid}", headers=self.headers)
+
+    async def close_kernel(self,oid):
+        # Close a running kernel
+        if not oid in self.kernels:
+            return
+        k = self.kernels[oid]
+        del self.kernels[oid]
+        await k["event"].wait()
+        await k["kernel"].close()
+        
+
+    async def interrupt_kernel(self,oid):
+        if not oid in self.kernels:
+            return
+        k = await self.kernel(oid)
+        await k.interrupt()
+
+    async def state(self,oid):
+        if not oid in self.kernels:
+            return "off"
+        return (await self.kernel(oid)).state
 
     async def close(self):
         await self.s.close()
@@ -103,11 +244,13 @@ class Server:
 class Manager:
     _log = logging.getLogger("notebook.Manager")
 
-    def __init__(self, plugin, config_file, ipy_config_dir, python=sys.executable):
+    def __init__(self, plugin, config_file, ipy_config_dir,kernelStateChange= lambda x,y:print(x,y),kernelOutput= lambda x,y,z:print(x,y,z), python=sys.executable):
         self.python = python
         self.config_file = config_file
         self.ipydir = ipy_config_dir
         self.p = plugin
+        self.kernelStateChange = kernelStateChange
+        self.kernelOutput = kernelOutput
         self.notebook_dir = os.path.join(
             self.p.config['data_dir'], 'notebooks')
 
@@ -127,7 +270,7 @@ class Manager:
         }
 
         # Get the access token from the plugin
-        papps = await self.p.listApps(owner=username, plugin=self.p.name +
+        papps = await self.p.apps(owner=username, plugin=self.p.name +
                                       ":" + "notebook", token=True)
 
         access_token = papps[0]["access_token"]
@@ -140,6 +283,7 @@ class Manager:
 
         penv = os.environ.copy()
         penv["HEEDY_ACCESS_TOKEN"] = access_token
+        penv["HEEDY_SERVER_URL"] = self.p.session.url
         penv["IPYTHONDIR"] = self.ipydir
         self._log.debug(f"Starting server for {username} on port {port}")
         proc = await asyncio.create_subprocess_exec(self.python, "-m", "jupyter", "notebook",
@@ -155,7 +299,11 @@ class Manager:
         await wait_until_open(port)
 
         self.servers[username]["server"] = Server(
-            notebook_dir, port, {'Authorization': 'Token todoChangeMeBeforeRelease'})
+            notebook_dir, port, {'Authorization': 'Token todoChangeMeBeforeRelease'},
+            username=username,
+            onStateChange=self.kernelStateChange,
+            onOutput=self.kernelOutput
+        )
 
         self._log.debug(f"Server for {username} ready")
 
