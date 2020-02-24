@@ -2,12 +2,12 @@
   <div class="notebook-result-cell" style="margin-top: 5px;padding: 5px;">
     <div
       v-if="result['text/html'] !== undefined"
-      v-html="result['text/html']"
+      v-html="unArray(result['text/html'])"
       style="overflow-x: auto"
     ></div>
     <div v-else-if="result['text/markdown'] !== undefined" v-html="markdown"></div>
     <img v-else-if="imgv!==null" :src="imgv" />
-    <pre v-else-if="Object.keys(result).length==1 && result['text/plain']!==undefined">{{ this.result["text/plain"] }}</pre>
+    <pre v-else-if="Object.keys(result).length==1 && result['text/plain']!==undefined">{{ unArray(this.result["text/plain"]) }}</pre>
     <pre v-else>{{JSON.stringify(this.result) }}</pre>
   </div>
 </template>
@@ -27,7 +27,7 @@ export default {
   }),
   computed: {
     markdown() {
-      return md.render(this.result["text/markdown"]);
+      return md.render(this.unArray(this.result["text/markdown"]));
     },
     imgv() {
       let k = Object.keys(this.result).filter(x => x.startsWith("image/"));
@@ -35,6 +35,14 @@ export default {
         return null;
       }
       return `data:${k[0]};base64,${this.result[k[0]]}`;
+    }
+  },
+  methods: {
+    unArray(txt) {
+      if (Array.isArray(txt)) {
+        return txt.join("");
+      }
+      return txt;
     }
   }
 };

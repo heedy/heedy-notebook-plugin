@@ -16,7 +16,7 @@
       </v-tooltip>
       <v-tooltip bottom>
         <template #activator="{on}">
-          <v-btn icon v-on="on">
+          <v-btn icon v-on="on" @click="download">
             <v-icon size="110%">fas fa-download</v-icon>
           </v-btn>
         </template>
@@ -60,6 +60,11 @@ export default {
   methods: {
     save() {
       this.$store.dispatch("saveNotebook", { id: this.object.id });
+    },
+    download() {
+      location.href =
+        location.href.split("#")[0] +
+        `api/objects/${this.object.id}/notebook.ipynb`;
     }
   }
 };

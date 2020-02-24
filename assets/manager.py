@@ -33,24 +33,23 @@ async def wait_until_open(port):
             await asyncio.sleep(0.1)
 
 # This code is run to initialize the kernel
-kernel_init_code = """# Initialize the notebook for use with Heedy
+kernel_init_code = """# HEEDY NOTEBOOK HEADER
+# This code is run automatically on kernel start by heedy 
+# It is assumed that jupyter is set up to inline images, and to import pylab
 
-# Use the seaborn style
-plt.style.use("seaborn")
+plt.style.use("seaborn")                 # Use the seaborn style
+plt.rcParams["figure.figsize"] = (10, 8) # Make figures larger by default
 
-# Change the figure size to something more reasonable
-# https://github.com/ipython/ipython/issues/11098
-# ugh
-plt.rcParams["figure.figsize"] = (10, 8)
-
+# You will need an app access token to connect to heedy
 import os
 import heedy
 h = heedy.App(os.getenv("HEEDY_ACCESS_TOKEN"),os.getenv("HEEDY_SERVER_URL")).owner
 """
 
+
 class Kernel:
 
-    def __init__(self,session,url,headers,kernel_id,oid,state_update,output_update):
+    def __init__(self, session, url, headers, kernel_id, oid, state_update, output_update):
         self.state = "starting"
         self.s = session
         self.url = url
@@ -66,7 +65,6 @@ class Kernel:
         self.ws = None
         self.ws_wait = asyncio.Event()
 
-
     async def close(self):
         # This is to be called from server, since it doesn't remove the kernel from the server's kernel dict
         pass
@@ -74,7 +72,7 @@ class Kernel:
     async def interrupt(self):
         pass
 
-    async def run(self,cell_id,code):
+    async def run(self, cell_id, code):
         header = {
             "msg_id": cell_id + "_" + uuid.uuid4().hex,
             "session": self.oid,
@@ -134,32 +132,31 @@ class Kernel:
 
         self.ws = ws
         self.ws_wait.set()
-        
+
         # Continue processing messages
         async for msg in ws:
             # self._log.debug('>>> full_msg: %s',pprint.pformat(msg))
             mt = msg.type
             md = msg.data
             if mt == aiohttp.WSMsgType.TEXT:
-                
+
                 # Now see what type of message we got
                 data = json.loads(md)
-                self._log.debug('>>> msg: %s',pprint.pformat(data))
+                self._log.debug('>>> msg: %s', pprint.pformat(data))
                 msg_type = data["msg_type"]
                 if msg_type == "status":
                     self.state = data["content"]["execution_state"]
                     self._log.debug(f"Kernel state: {self.state}")
-                    await self.state_update(self.oid,self.state)
-                elif msg_type in ["execute_result","display_data","stream","error"]:
+                    await self.state_update(self.oid, self.state)
+                elif msg_type in ["execute_result", "display_data", "stream", "error"]:
                     output = data["content"]
                     output["output_type"] = msg_type
 
                     # Get the cell ID
                     cell_id = data["parent_header"]["msg_id"].split("_")[0]
                     self._log.debug(f"Output {pprint.pformat(output)}")
-                    await self.output_update(self.oid,cell_id,output)
+                    await self.output_update(self.oid, cell_id, output)
 
-                
             elif mt == aiohttp.WSMsgType.PING:
                 await ws.pong()
             elif ws.closed:
@@ -169,11 +166,9 @@ class Kernel:
                     'unexpected message type: %s', pprint.pformat(msg))
 
 
-
 class Server:
-    
 
-    def __init__(self, folder, port, headers,username="",onStateChange= lambda x,y:print(x,y),onOutput=lambda x,y,z : print(x,y,z)):
+    def __init__(self, folder, port, headers, username="", onStateChange=lambda x, y: print(x, y), onOutput=lambda x, y, z: print(x, y, z)):
         self.port = port
         self.folder = folder
         self.headers = headers
@@ -186,7 +181,6 @@ class Server:
         # The kernels
         self.kernels = {}
 
-    
     async def kernel(self, oid):
         # Return an existing kernel if it is already running
         if oid in self.kernels:
@@ -203,20 +197,21 @@ class Server:
         self.kernels[oid] = kernel_obj
 
         # Create a new kernel
-        res = await self.s.post(f"{self.url}/kernels",headers=self.headers,data=json.dumps({
+        res = await self.s.post(f"{self.url}/kernels", headers=self.headers, data=json.dumps({
             "name": "python3"
         }))
         kernel_response = await res.json()
         self._log.debug(f"Started kernel {kernel_response['id']} for {oid}")
-        k = Kernel(self.s,self.url,self.headers,kernel_response["id"],oid,self.onStateChange,self.onOutput)
+        k = Kernel(self.s, self.url, self.headers,
+                   kernel_response["id"], oid, self.onStateChange, self.onOutput)
         kernel_obj["kernel"] = k
         kernel_obj["event"].set()
         return k
-        
-        #self._log.debug("Opening kernel websocket for %s", oid)
-        #return await self.s.ws_connect(f"{self.url}/kernels/{kid}/channels?session_id={sid}", headers=self.headers)
 
-    async def close_kernel(self,oid):
+        #self._log.debug("Opening kernel websocket for %s", oid)
+        # return await self.s.ws_connect(f"{self.url}/kernels/{kid}/channels?session_id={sid}", headers=self.headers)
+
+    async def close_kernel(self, oid):
         # Close a running kernel
         if not oid in self.kernels:
             return
@@ -224,15 +219,14 @@ class Server:
         del self.kernels[oid]
         await k["event"].wait()
         await k["kernel"].close()
-        
 
-    async def interrupt_kernel(self,oid):
+    async def interrupt_kernel(self, oid):
         if not oid in self.kernels:
             return
         k = await self.kernel(oid)
         await k.interrupt()
 
-    async def state(self,oid):
+    async def state(self, oid):
         if not oid in self.kernels:
             return "off"
         return (await self.kernel(oid)).state
@@ -244,7 +238,7 @@ class Server:
 class Manager:
     _log = logging.getLogger("notebook.Manager")
 
-    def __init__(self, plugin, config_file, ipy_config_dir,kernelStateChange= lambda x,y:print(x,y),kernelOutput= lambda x,y,z:print(x,y,z), python=sys.executable):
+    def __init__(self, plugin, config_file, ipy_config_dir, kernelStateChange=lambda x, y: print(x, y), kernelOutput=lambda x, y, z: print(x, y, z), python=sys.executable):
         self.python = python
         self.config_file = config_file
         self.ipydir = ipy_config_dir
@@ -271,7 +265,7 @@ class Manager:
 
         # Get the access token from the plugin
         papps = await self.p.apps(owner=username, plugin=self.p.name +
-                                      ":" + "notebook", token=True)
+                                  ":" + "notebook", token=True)
 
         access_token = papps[0]["access_token"]
         port = free_port()
@@ -299,7 +293,8 @@ class Manager:
         await wait_until_open(port)
 
         self.servers[username]["server"] = Server(
-            notebook_dir, port, {'Authorization': 'Token todoChangeMeBeforeRelease'},
+            notebook_dir, port, {
+                'Authorization': 'Token todoChangeMeBeforeRelease'},
             username=username,
             onStateChange=self.kernelStateChange,
             onOutput=self.kernelOutput

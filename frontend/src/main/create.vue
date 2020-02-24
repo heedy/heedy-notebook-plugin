@@ -14,10 +14,19 @@
               v-model="description"
             ></v-text-field>
             <v-radio-group v-model="notebook" style="margin-top:-10px;margin-bottom: -50px;">
-              <v-radio value="blank" label="Create Blank Notebook"></v-radio>
-              <v-radio value="import" label="Import from URL"></v-radio>
+              <v-radio value="blank" label="Blank Notebook"></v-radio>
               <v-radio value="upload" label="Upload from File"></v-radio>
             </v-radio-group>
+            <div v-if="notebook=='upload'" style="margin-top:25px">
+              <v-file-input
+                v-model="file"
+                v-if="!uploading"
+                show-size
+                label="Jupyter Notebook (.ipynb)"
+              ></v-file-input>
+              <v-progress-linear v-else :value="uploadPercent"></v-progress-linear>
+              <v-btn v-if="uploading" dark @click="cancelUpload">Cancel</v-btn>
+            </div>
           </v-container>
         </v-flex>
       </v-layout>
@@ -36,7 +45,11 @@ export default {
     description: "",
     name: "",
     notebook: "blank",
-    upload_url: ""
+    upload_url: "",
+    uploading: false,
+    uploadPercent: 0,
+    file: null,
+    xhr: null
   }),
   methods: {
     create: async function() {
@@ -66,10 +79,71 @@ export default {
       }
       // The result comes without the icon, let's set it correctly
       result.data.icon = toCreate.icon;
-
       this.$store.commit("setObject", result.data);
-      this.loading = false;
-      this.$router.replace({ path: `/objects/${result.data.id}` });
+
+      // Finish if we are not uploading
+      if (this.notebook != "upload") {
+        this.loading = false;
+        this.$router.replace({ path: `/objects/${result.data.id}` });
+        return;
+      }
+
+      this.uploading = true;
+      let form = new FormData();
+      form.append("notebook", this.file);
+
+      var xhr = new XMLHttpRequest();
+      xhr.upload.addEventListener(
+        "progress",
+        evt => {
+          if (evt.lengthComputable) {
+            this.uploadPercent = Math.floor((100 * evt.loaded) / evt.total);
+          }
+        },
+        false
+      );
+      let endRequest = async () => {
+        await this.$app.api("DELETE", `api/objects/${result.data.id}`);
+        this.file = null;
+        this.uploading = false;
+        this.loading = false;
+        this.xhr = null;
+      };
+      xhr.addEventListener("load", evt => {
+        if (evt.target.status != 200) {
+          try {
+            this.alert =
+              "Upload failed: " +
+              JSON.parse(evt.target.response).error_description;
+          } catch {
+            this.alert = "Upload failed";
+          }
+          endRequest();
+          return;
+        }
+        // Success, go to the notebook
+        this.loading = false;
+        this.$router.replace({ path: `/objects/${result.data.id}` });
+      });
+      xhr.addEventListener("error", evt => {
+        console.log("ERROR", evt);
+        endRequest();
+        this.alert = "Upload failed";
+      });
+      xhr.addEventListener("abort", evt => {
+        console.log("ABORT", evt);
+        endRequest();
+      });
+      xhr.open("POST", `api/objects/${result.data.id}/notebook.ipynb`);
+      xhr.send(form);
+      this.xhr = xhr;
+    },
+    cancelUpload() {
+      if (this.xhr != null) {
+        this.xhr.abort();
+      } else {
+        this.uploading = false;
+      }
     }
   }
 };
