@@ -27,8 +27,15 @@ export default {
         addNotebookUpdate(state, v) {
             Vue.set(state.notebooks[v.id], "updates", addUpdate(state.notebooks[v.id].updates, v.data));
         },
+        undoNotebookUpdates(state, v) {
+            if (v.data.cell_id === undefined) {
+                Vue.set(state.notebooks[v.id], "updates", []);
+                return;
+            }
+            Vue.set(state.notebooks[v.id], "updates", state.notebooks[v.id].updates.filter((u) => u.cell_id != v.data.cell_id));
+        },
         applyNotebookUpdates(state, v) {
-            if (state.notebooks[v.id] === undefined) {
+            if (state.notebooks[v.id] === undefined || state.notebooks[v.id].notebook == null) {
                 return; // Don't apply updates to notebooks we're not holding in memory
             }
             let newNotebook = {
@@ -42,10 +49,15 @@ export default {
             Vue.set(state.notebooks, v.id, newNotebook);
         },
         setNotebookKernelState(state, v) {
-            if (state.notebooks[v.id] === undefined) {
-                return; // Don't apply updates to notebooks we're not holding in memory
+            if (state.notebooks.hasOwnProperty(v.id)) {
+                Vue.set(state.notebooks[v.id], "state", v.state);
+            } else {
+                Vue.set(state.notebooks, v.id, {
+                    notebook: null,
+                    updates: [],
+                    state: v.state
+                });
             }
-            Vue.set(state.notebooks[v.id], "state", v.state);
         }
     },
     actions: {
@@ -67,22 +79,6 @@ export default {
                 q.callback();
             }
         },
-        /*
-        addNotebookCell: async function ({
-            state,
-            commit
-        }, q) {
-            console.log("Adding cell", q);
-            let res = await api("POST", `api/objects/${q.objectid}/notebook`, q.source);
-            if (!res.response.ok) {
-                commit("alert", {
-                    type: "error",
-                    text: res.data.error_description
-                });
-
-            }
-        },
-        */
         saveNotebook: async function ({
             state,
             commit
@@ -109,7 +105,7 @@ export default {
             state,
             commit
         }, q) {
-            if (state.notebooks[q.id] === undefined) {
+            if (state.notebooks[q.id] === undefined || state.notebooks[q.id].notebook == null) {
                 return;
             }
             let res = await api("GET", `api/objects/${q.id}/notebook/cell/${q.cell_id}`);
@@ -150,10 +146,94 @@ export default {
                 });
             }
 
+            if (state.notebooks[q.id].notebook[q.data.cell_id].cell_type == "code") {
+                console.log("Running cell", q.id, q.data);
 
-            console.log("Running cell", q.id, q.data);
+                let res = await api("POST", `api/objects/${q.id}/notebook/kernel`, q.data);
+                if (!res.response.ok) {
+                    commit("alert", {
+                        type: "error",
+                        text: res.data.error_description
+                    });
 
-            let res = await api("POST", `api/objects/${q.id}/notebook/kernel`, q.data);
+                }
+            }
+
+        },
+        runNotebook: async function ({
+            state,
+            commit
+        }, q) {
+            let nb = state.notebooks[q.id].updates;
+            if (nb.length > 0) {
+                console.log("Saving notebook", q.id);
+                let res = await api("POST", `api/objects/${q.id}/notebook`, nb);
+                if (!res.response.ok) {
+                    commit("alert", {
+                        type: "error",
+                        text: res.data.error_description
+                    });
+                    return
+
+                }
+                commit("applyNotebookUpdates", {
+                    id: q.id,
+                    // clear: true, - the updates should get deduplicated
+                    updates: state.notebooks[q.id].updates // Updates might have already been deduplicated
+                });
+            }
+
+            let ntb = Object.values(state.notebooks[q.id].notebook);
+            ntb.sort((a, b) => a["cell_index"] - b["cell_index"]);
+            for (let c of ntb) {
+                if (c.cell_type == "code") {
+                    console.log("Running cell", q.id, c.cell_id);
+
+                    let res = await api("POST", `api/objects/${q.id}/notebook/kernel`, {
+                        cell_id: c.cell_id,
+                        source: c.source
+                    });
+                    if (!res.response.ok) {
+                        commit("alert", {
+                            type: "error",
+                            text: res.data.error_description
+                        });
+
+                    }
+                }
+            }
+
+        },
+        getNotebookStatus: async function ({
+            state,
+            commit
+        }, q) {
+            console.log("Getting notebook status for ", q.id);
+            let args = {};
+            if (q.start !== undefined) {
+                args.start = true;
+            }
+
+            let res = await api("GET", `api/objects/${q.id}/notebook/kernel`, args);
+            if (!res.response.ok) {
+                commit("alert", {
+                    type: "error",
+                    text: res.data.error_description
+                });
+                return;
+            }
+            commit("setNotebookKernelState", {
+                id: q.id,
+                state: res.data
+            });
+        },
+        interruptNotebook: async function ({
+            state,
+            commit
+        }, q) {
+            console.log("Stopping kernel for", q.id);
+
+            let res = await api("PATCH", `api/objects/${q.id}/notebook/kernel`);
             if (!res.response.ok) {
                 commit("alert", {
                     type: "error",
@@ -162,6 +242,19 @@ export default {
 
             }
         },
+        stopNotebook: async function ({
+            state,
+            commit
+        }, q) {
+            console.log("Stopping kernel for", q.id);
+            let res = await api("DELETE", `api/objects/${q.id}/notebook/kernel`);
+            if (!res.response.ok) {
+                commit("alert", {
+                    type: "error",
+                    text: res.data.error_description
+                });
 
+            }
+        }
     }
 }

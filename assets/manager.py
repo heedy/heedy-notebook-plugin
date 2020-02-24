@@ -66,11 +66,21 @@ class Kernel:
         self.ws_wait = asyncio.Event()
 
     async def close(self):
+        su = self.state_update
+        async def doNothing(x,y):
+            pass
+        self.state_update = doNothing
+        await su(self.oid,"off")
+
         # This is to be called from server, since it doesn't remove the kernel from the server's kernel dict
-        pass
+        await self.s.delete(f"{self.url}/kernels/{self.id}", headers=self.headers)
+
+        
+
+
 
     async def interrupt(self):
-        pass
+        await self.s.post(f"{self.url}/kernels/{self.id}/interrupt", headers=self.headers)
 
     async def run(self, cell_id, code):
         header = {
@@ -251,12 +261,16 @@ class Manager:
         self.servers = {}
         self.closing = False
 
-    async def get(self, username):
+    async def get(self, username,notify_oid=None):
         # Return an existing server if it was already initialized
         if username in self.servers:
             # The server could be in process of initializing, so wait on the event
             await self.servers[username]["event"].wait()
             return self.servers[username]["server"]
+
+        # Send a status for the notify_oid
+        if notify_oid is not None:
+            await self.kernelStateChange(notify_oid,"starting")
 
         # Set the initialization event that can be waited by other requests
         self.servers[username] = {

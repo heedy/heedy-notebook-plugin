@@ -10,7 +10,9 @@
         :contents="contents"
         :readonly="readonly"
         @update="(c) => $store.commit('addNotebookUpdate',{id: object.id,data:c})"
+        @undo="(c) => $store.commit('undoNotebookUpdates',{id: object.id,data:c})"
         @run="(c) => $store.dispatch('runNotebookCell',{id: object.id,data:c})"
+        @save="$store.dispatch('saveNotebook', { id: object.id })"
       />
     </v-card>
   </v-flex>
@@ -35,7 +37,10 @@ export default {
   computed: {
     contents() {
       console.log(this.$store.state.notebooks.notebooks[this.object.id]);
-      if (this.$store.state.notebooks.notebooks[this.object.id] === undefined) {
+      if (
+        this.$store.state.notebooks.notebooks[this.object.id] === undefined ||
+        this.$store.state.notebooks.notebooks[this.object.id].notebook == null
+      ) {
         return {};
       }
       let cur_nb = this.$store.state.notebooks.notebooks[this.object.id];
@@ -61,6 +66,9 @@ export default {
           id: newValue.id,
           callback: () => (this.loading = false)
         });
+        if (!this.readonly) {
+          this.$store.dispatch("getNotebookStatus", { id: newValue.id });
+        }
       }
     }
   },
@@ -69,6 +77,9 @@ export default {
       id: this.object.id,
       callback: () => (this.loading = false)
     });
+    if (!this.readonly) {
+      this.$store.dispatch("getNotebookStatus", { id: this.object.id });
+    }
   },
   beforeDestroy() {}
 };

@@ -16,10 +16,13 @@
         v-model="source"
         :readonly="readonly"
         :count="execution_count"
+        :modified="modified"
+        @undo="$emit('undo')"
         @convert="convert"
         @delete="$emit('delete')"
         @addAbove="$emit('addAbove')"
         @addBelow="$emit('addBelow')"
+        @save="$emit('save')"
         @hide="hide(true)"
         @run="run()"
       />
@@ -36,6 +39,7 @@
         v-model="source"
         :readonly="readonly"
         lang="markdown"
+        :modified="modified"
         @run="{editing=false;run()}"
         @convert="convert"
         @delete="$emit('delete')"
@@ -94,6 +98,9 @@ export default {
         return this.cell.metadata.collapsed;
       }
       return false;
+    },
+    modified() {
+      return this.cell.modified !== undefined && this.cell.modified;
     }
   },
   methods: {

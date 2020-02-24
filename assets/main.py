@@ -183,7 +183,7 @@ async def save_notebook_modifications(object_id, data):
                         if setme != "":
                             setme += ","
                         setme += "outputs=?"
-                        outputs.append(cell["outputs"])
+                        outputs.append(json.dumps(cell["outputs"]))
 
                     outputs.append(object_id)
                     outputs.append(cell_id)
@@ -345,7 +345,7 @@ async def update_notebook(request):
     r = p.objectRequest(request)
     data = await request.json()
     for d in data:
-        if "outputs" in data and len(data["outputs"]) > 0:
+        if "outputs" in d and len(d["outputs"]) > 0:
             return web.Response(status=403, body="Setting non-empty outputs not permitted")
     # try:
     await save_notebook_modifications(r["object"], data)
@@ -470,7 +470,7 @@ async def run_cell(request):
         src = cell_content["source"]
         l.info(f"RUN {data['cell_id']}")
         await notebook_cell_output_clear(r["object"], data["cell_id"])
-        server = await m.get(r["owner"])
+        server = await m.get(r["owner"],notify_oid=r["object"])
         kernel = await server.kernel(r["object"])
         await kernel.run(data["cell_id"], src)
     return web.json_response("ok")
@@ -508,7 +508,7 @@ async def kernel_state(request):
     r = p.objectRequest(request)
 
     if "start" in request.rel_url.query:
-        server = await m.get(r["owner"])
+        server = await m.get(r["owner"],notify_oid=r["object"])
         kernel = await server.kernel(r["object"])
 
         return web.json_response(kernel.state)

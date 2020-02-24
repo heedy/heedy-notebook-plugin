@@ -7,6 +7,12 @@ export function addUpdate(changeList, change) {
         };
         delete change["modified"];
     }
+    if ("outputs" in change && change["outputs"].length > 0) { // Clean up possible "outputs"
+        change = {
+            ...change
+        };
+        delete change["outputs"];
+    }
     if (changeList.length == 0) return [change];
     changeList = [...changeList];
     if (changeList[changeList.length - 1].cell_id == change.cell_id) {
