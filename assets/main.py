@@ -314,13 +314,17 @@ async def read_cell(object_id, cell_id):
 
 
 async def kernel_state_update(object_id, state):
-    await p.fire({
-        "event": "notebook_kernel_state",
-        "object": object_id,
-        "data": {
-            "state": state
-        }
-    })
+    try:
+        # Trying to update state for an object that was deleted fails
+        await p.fire({
+            "event": "notebook_kernel_state",
+            "object": object_id,
+            "data": {
+                "state": state
+            }
+        })
+    except:
+        pass
 
 
 async def kernel_cell_output(object_id, cell_id, data):
@@ -470,7 +474,7 @@ async def run_cell(request):
         src = cell_content["source"]
         l.info(f"RUN {data['cell_id']}")
         await notebook_cell_output_clear(r["object"], data["cell_id"])
-        server = await m.get(r["owner"],notify_oid=r["object"])
+        server = await m.get(r["owner"], notify_oid=r["object"])
         kernel = await server.kernel(r["object"])
         await kernel.run(data["cell_id"], src)
     return web.json_response("ok")
@@ -482,8 +486,7 @@ async def close_kernel(request):
         return web.Response(status=403, body="Not permitted")
 
     r = p.objectRequest(request)
-    server = await m.get(r["owner"])
-    await server.close_kernel(r["object"])
+    await m.close_kernel(r["owner"], r["object"])
 
     return web.json_response("ok")
 
@@ -508,7 +511,7 @@ async def kernel_state(request):
     r = p.objectRequest(request)
 
     if "start" in request.rel_url.query:
-        server = await m.get(r["owner"],notify_oid=r["object"])
+        server = await m.get(r["owner"], notify_oid=r["object"])
         kernel = await server.kernel(r["object"])
 
         return web.json_response(kernel.state)
@@ -517,6 +520,22 @@ async def kernel_state(request):
         return web.json_response("off")
     server = await m.get(r["owner"])
     return web.json_response(await server.state(r["object"]))
+
+
+@routes.post("/notebook_delete")
+async def notebook_deleted(request):
+    evt = await request.json()
+    l.debug(f"Notebook Deleted: {evt}")
+    asyncio.create_task(m.close_kernel(evt["user"], evt["object"]))
+    return web.Response(text="ok")
+
+
+@routes.post("/user_delete")
+async def notebook_deleted(request):
+    evt = await request.json()
+    l.debug(f"User Deleted: {evt}")
+    asyncio.create_task(m.close_server(evt["user"]))
+    return web.Response(text="ok")
 
 
 app = web.Application()

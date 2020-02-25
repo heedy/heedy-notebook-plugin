@@ -67,17 +67,14 @@ class Kernel:
 
     async def close(self):
         su = self.state_update
-        async def doNothing(x,y):
+
+        async def doNothing(x, y):
             pass
         self.state_update = doNothing
-        await su(self.oid,"off")
+        await su(self.oid, "off")
 
         # This is to be called from server, since it doesn't remove the kernel from the server's kernel dict
         await self.s.delete(f"{self.url}/kernels/{self.id}", headers=self.headers)
-
-        
-
-
 
     async def interrupt(self):
         await self.s.post(f"{self.url}/kernels/{self.id}/interrupt", headers=self.headers)
@@ -261,7 +258,7 @@ class Manager:
         self.servers = {}
         self.closing = False
 
-    async def get(self, username,notify_oid=None):
+    async def get(self, username, notify_oid=None):
         # Return an existing server if it was already initialized
         if username in self.servers:
             # The server could be in process of initializing, so wait on the event
@@ -270,7 +267,7 @@ class Manager:
 
         # Send a status for the notify_oid
         if notify_oid is not None:
-            await self.kernelStateChange(notify_oid,"starting")
+            await self.kernelStateChange(notify_oid, "starting")
 
         # Set the initialization event that can be waited by other requests
         self.servers[username] = {
@@ -318,6 +315,22 @@ class Manager:
 
         self.servers[username]["event"].set()
         return self.servers[username]["server"]
+
+    async def close_server(self, k):
+        if k in self.servers:
+            ss = self.servers[k]
+            del self.servers[k]
+            if "proc" in ss:
+                ss["proc"].terminate()
+                await ss["proc"].wait()
+
+            if "server" in ss:
+                await ss["server"].close()
+
+    async def close_kernel(self, username, oid):
+        if username in self.servers:
+            serv = await self.get(username)
+            await serv.close_kernel(oid)
 
     async def close(self):
         self._log.debug("Terminating all servers")

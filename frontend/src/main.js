@@ -47,38 +47,41 @@ function setup(app) {
         weight: 5
     });
 
-    // Finally, subscribe to notebook events for our own user
-    app.websocket.subscribe("notebook_cell_update", {
-        event: "notebook_cell_update",
-        user: app.info.user.username
-    }, (e) => app.store.commit("applyNotebookUpdates", {
-        id: e.object,
-        updates: [e.data]
-    }));
-    app.websocket.subscribe("notebook_cell_delete", {
-        event: "notebook_cell_delete",
-        user: app.info.user.username
-    }, (e) => app.store.commit("applyNotebookUpdates", {
-        id: e.object,
-        updates: [{
-            ...e.data,
-            delete: true
-        }]
-    }));
-    app.websocket.subscribe("notebook_cell_output", {
-        event: "notebook_cell_output",
-        user: app.info.user.username
-    }, (e) => app.store.dispatch("getNotebookCellOutput", {
-        id: e.object,
-        cell_id: e.data.cell_id
-    }));
-    app.websocket.subscribe("notebook_kernel_state", {
-        event: "notebook_kernel_state",
-        user: app.info.user.username
-    }, (e) => app.store.commit("setNotebookKernelState", {
-        id: e.object,
-        state: e.data.state
-    }));
+    if (app.info.user != null) {
+        // Finally, subscribe to notebook events for our own user
+        app.websocket.subscribe("notebook_cell_update", {
+            event: "notebook_cell_update",
+            user: app.info.user.username
+        }, (e) => app.store.commit("applyNotebookUpdates", {
+            id: e.object,
+            updates: [e.data]
+        }));
+        app.websocket.subscribe("notebook_cell_delete", {
+            event: "notebook_cell_delete",
+            user: app.info.user.username
+        }, (e) => app.store.commit("applyNotebookUpdates", {
+            id: e.object,
+            updates: [{
+                ...e.data,
+                delete: true
+            }]
+        }));
+        app.websocket.subscribe("notebook_cell_output", {
+            event: "notebook_cell_output",
+            user: app.info.user.username
+        }, (e) => app.store.dispatch("getNotebookCellOutput", {
+            id: e.object,
+            cell_id: e.data.cell_id
+        }));
+        app.websocket.subscribe("notebook_kernel_state", {
+            event: "notebook_kernel_state",
+            user: app.info.user.username
+        }, (e) => app.store.commit("setNotebookKernelState", {
+            id: e.object,
+            state: e.data.state
+        }));
+    }
+
 }
 
 export default setup;
