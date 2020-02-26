@@ -1,6 +1,6 @@
 <template>
   <v-flex>
-    <draggable :value="cells" :disabled="readonly" @end="onMove">
+    <draggable :value="cells" :disabled="readonly" @end="onMove" handle=".draghandle">
       <cell
         v-for="(c,i) in cells"
         :ref="c.cell_id"

@@ -22,7 +22,6 @@
         @delete="$emit('delete')"
         @addAbove="$emit('addAbove')"
         @addBelow="$emit('addBelow')"
-        @save="$emit('save')"
         @hide="hide(true)"
         @run="run()"
       />
@@ -40,6 +39,7 @@
         :readonly="readonly"
         lang="markdown"
         :modified="modified"
+        @undo="$emit('undo')"
         @run="{editing=false;run()}"
         @convert="convert"
         @delete="$emit('delete')"

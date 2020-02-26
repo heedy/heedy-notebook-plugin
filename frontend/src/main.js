@@ -1,4 +1,5 @@
 import Create from "./main/create.vue";
+import Update from "./main/update.vue";
 import Container from "./main/container.vue";
 import vuexModule from "./main/vuex.js";
 
@@ -13,16 +14,13 @@ function setup(app) {
         route: "/create/object/notebook"
     });
 
-    /*
-    app.object.addRoute({
-      path: "/stream/update",
-      component: Update
-    });
-    */
-
     app.addRoute({
         path: "/create/object/notebook",
         component: Create
+    });
+    app.object.addRoute({
+        path: "/notebook/update",
+        component: Update
     });
 
     app.object.addType({
@@ -38,6 +36,8 @@ function setup(app) {
         type: "notebook",
         key: "header"
     });
+
+
 
     // Add the notebook card
     app.object.addComponent({

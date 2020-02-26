@@ -41,7 +41,7 @@
         </v-tooltip>
         <v-tooltip bottom>
           <template #activator="{on}">
-            <v-btn icon v-on="on">
+            <v-btn icon v-on="on" :to="`/objects/${object.id}/notebook/update`">
               <v-icon>edit</v-icon>
             </v-btn>
           </template>

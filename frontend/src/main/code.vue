@@ -14,7 +14,7 @@
           @input="onInput"
         />
       </div>
-      <div v-if="!readonly">
+      <div v-if="!readonly" class="draghandle">
         <div style="display: flex; flex-direction: column;align-items: center;height: 100%">
           <!-- This div holds the cell toolbar-->
           <div style="flex-basis:content;">
@@ -157,8 +157,7 @@ export default {
           "Ctrl-S": () => this.$emit("save"),
           "Cmd-S": () => this.$emit("save")
         },
-        lineWrapping: this.lang == "markdown",
-        autofocus: this.autofocus
+        lineWrapping: true
       };
     }
   },
