@@ -13,6 +13,7 @@
               placeholder="This notebook does analysis"
               v-model="description"
             ></v-text-field>
+            <h-tag-editor v-model="tags" />
             <v-radio-group v-model="notebook" style="margin-top:-10px;margin-bottom: -50px;">
               <v-radio value="blank" label="Blank Notebook"></v-radio>
               <v-radio value="upload" label="Upload from File"></v-radio>
@@ -43,6 +44,7 @@ export default {
     alert: "",
     loading: false,
     description: "",
+    tags: "",
     name: "",
     notebook: "blank",
     upload_url: "",
@@ -65,10 +67,11 @@ export default {
 
       let toCreate = {
         name: this.name,
-        type: "notebook"
+        type: "notebook",
+        description: this.description,
+        tags: this.tags,
+        icon: this.$refs.iconEditor.getImage()
       };
-      toCreate.description = this.description;
-      toCreate.icon = this.$refs.iconEditor.getImage();
 
       let result = await this.$app.api("POST", `api/objects`, toCreate);
 

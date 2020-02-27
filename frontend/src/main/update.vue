@@ -18,11 +18,11 @@
               placeholder="This notebook does analysis"
               v-model="description"
             ></v-text-field>
+            <h-tag-editor v-model="tags" />
           </v-container>
         </v-flex>
       </v-layout>
     </v-container>
-
     <v-card-actions>
       <v-btn dark color="red" @click="del" :loading="loading">Delete</v-btn>
       <v-spacer></v-spacer>
@@ -119,6 +119,17 @@ export default {
       },
       set(v) {
         this.$app.vue.set(this.modified, "name", v);
+      }
+    },
+    tags: {
+      get() {
+        if (this.modified.tags !== undefined) {
+          return this.modified.tags;
+        }
+        return this.object.tags;
+      },
+      set(v) {
+        this.$app.vue.set(this.modified, "tags", v);
       }
     }
   }

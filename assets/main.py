@@ -8,10 +8,11 @@ import json
 import logging
 import aiosqlite
 import uuid
+from datetime import datetime
 
 import manager
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 l = logging.getLogger("notebook")
 
 p = Plugin()
@@ -326,6 +327,11 @@ async def kernel_state_update(object_id, state):
     except:
         pass
 
+async def update_last_modified(r):
+    cur_date = datetime.today().strftime('%Y-%m-%d')
+    if r["last_modified"]!=cur_date:
+        l.debug(f"Updating modification time of {r['object']} to {cur_date}")
+        await (await p.objects[r['object']]).update(last_modified=cur_date)
 
 async def kernel_cell_output(object_id, cell_id, data):
     await notebook_cell_outputs(object_id, cell_id, data)
@@ -353,6 +359,7 @@ async def update_notebook(request):
             return web.Response(status=403, body="Setting non-empty outputs not permitted")
     # try:
     await save_notebook_modifications(r["object"], data)
+    await update_last_modified(r)
     return web.json_response("ok")
     # except Exception as e:
     #    l.error(str(e))
@@ -444,6 +451,7 @@ async def post_ipython(request):
             # Remove the heedy header
             cells = cells[1:]
         await save_notebook_modifications(r["object"], cells)
+        await update_last_modified(r)
 
     return web.json_response("ok")
 
