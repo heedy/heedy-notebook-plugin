@@ -20,3 +20,6 @@ testdb/
 # Eh, package lock is not needed temporarily
 package-lock.json
 go.sum
+
+
+dist/

@@ -1,21 +1,35 @@
+VERSION:=$(shell cat VERSION)-git.$(shell git rev-list --count HEAD)
 
 .PHONY: clean phony
 
-all: 
+all: build
 
 #Empty rule for forcing rebuilds
 phony:
 
+build: frontend
+	cd dist;zip -r heedy-notebook-plugin-${VERSION}.zip ./notebook
+
+dist/notebook: node_modules
+	mkdir -p dist/notebook
+	cp LICENSE ./dist/notebook
+	cp VERSION ./dist/notebook
+	cp requirements.txt ./dist/notebook
+	cp -r ipynb ./dist/notebook
+	npm run build
+
+node_modules:
+	npm i
+
 frontend/node_modules:
 	cd frontend; npm i
 
-frontend: phony frontend/node_modules
+frontend: phony dist/notebook frontend/node_modules
 	cd frontend; npm run build
 
 	
-debug: phony frontend/node_modules
-	cd frontend; npm run mkdebug
+debug: phony frontend/node_modules dist/notebook
+	npm run debug
 
 clean:
-	# Clear all generated assets for webapp
-	rm -rf ./assets/public
+	rm -rf ./dist

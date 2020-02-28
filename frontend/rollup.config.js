@@ -54,7 +54,7 @@ function out(name, loc = "", format = "es") {
         input: "src/" + name,
         output: {
             name: filename[0],
-            file: `../assets/public/static/${plugin_name}/` +
+            file: `../dist/${plugin_name}/public/static/${plugin_name}/` +
                 loc +
                 filename[0] +
                 (format == "es" ? ".mjs" : ".js"),
