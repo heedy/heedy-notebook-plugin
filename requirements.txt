@@ -2,5 +2,13 @@
 heedy>=0.0.8
 aiosqlite
 aiohttp
-jupyter
 matplotlib
+
+# The raspi has woefully outdated jupyter, so need to make sure this includes
+# the components necessary to replace it. This plugin fails with
+# jupyter as installed on buster
+jupyter>=1.0.0
+notebook>=6.0.0
+ipython>=7.0.0
+jupyter-client>=6.0.0
+jupyter-core>=4.6.0
