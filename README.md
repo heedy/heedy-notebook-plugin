@@ -13,7 +13,7 @@ cd heedy-notebook-plugin
 make
 ```
 
-The plugin zip file will be created at `dist/heedy-notebook-plugin-{VERSION}.zip`.
+The plugin zip file will be created at `dist/heedy-notebook-plugin-{VERSION}.zip`. It can be installed by uploading to heedy from the UI.
 
 ### Developing
 
@@ -24,7 +24,7 @@ heedy create testdb
 mkdir testdb/plugins
 make debug
 # In a different terminal (since make debug watches files):
-ln -s ${pwd}/dist/notebook ./testdb/plugins/notebook
+ln -s $(pwd)/dist/notebook ./testdb/plugins/notebook
 ```
 
 At this point, you should edit `testdb/heedy.conf` to add the notebook plugin. Any changes you make to the frontend should be available on browser refresh, and any changes to the Python files require a heedy restart. 

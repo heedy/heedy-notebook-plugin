@@ -67,7 +67,10 @@ export default {
           callback: () => (this.loading = false)
         });
         if (!this.readonly) {
-          this.$store.dispatch("getNotebookStatus", { id: newValue.id });
+          this.$store.dispatch("getNotebookStatus", {
+            id: newValue.id,
+            start: true
+          });
         }
       }
     }
@@ -78,7 +81,10 @@ export default {
       callback: () => (this.loading = false)
     });
     if (!this.readonly) {
-      this.$store.dispatch("getNotebookStatus", { id: this.object.id });
+      this.$store.dispatch("getNotebookStatus", {
+        id: this.object.id,
+        start: true
+      });
     }
   },
   beforeDestroy() {}
