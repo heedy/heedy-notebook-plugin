@@ -18,8 +18,8 @@ l = logging.getLogger("notebook")
 p = Plugin()
 
 
-config_file = os.path.join(p.config['plugin_dir'], 'jupyter_heedy_config.py')
-ipy_config = os.path.join(p.config['plugin_dir'], 'ipynb')
+config_file = os.path.join(p.config["plugin_dir"], "jupyter_heedy_config.py")
+ipy_config = os.path.join(p.config["plugin_dir"], "ipynb")
 
 
 routes = web.RouteTableDef()
@@ -75,28 +75,42 @@ async def save_notebook_modifications(object_id, data):
                 cell_id = cell["cell_id"]
                 l.debug(f"Deleting cell {object_id}/{cell_id}")
                 # On a cell delete, we need to shift indices of cells after it
-                c = await db.execute("SELECT cell_index FROM notebook_cells WHERE object_id=? AND cell_id=?;", (object_id, cell_id))
+                c = await db.execute(
+                    "SELECT cell_index FROM notebook_cells WHERE object_id=? AND cell_id=?;",
+                    (object_id, cell_id),
+                )
                 cell_index = int((await c.fetchone())[0])
                 await c.close()
 
-                await db.execute("DELETE FROM notebook_cells WHERE object_id=? AND cell_id=?;", (object_id, cell_id))
-                await db.execute("UPDATE notebook_cells SET cell_index=cell_index-1 WHERE object_id=? AND cell_index>?", (object_id, cell_index))
+                await db.execute(
+                    "DELETE FROM notebook_cells WHERE object_id=? AND cell_id=?;",
+                    (object_id, cell_id),
+                )
+                await db.execute(
+                    "UPDATE notebook_cells SET cell_index=cell_index-1 WHERE object_id=? AND cell_index>?",
+                    (object_id, cell_index),
+                )
 
-                await db.execute("DELETE FROM notebook_cells WHERE object_id=? AND cell_id=?;", (object_id, cell_id))
-                event_data.append({
-                    "event": "notebook_cell_delete",
-                    "object": object_id,
-                    "data": {
-                        "cell_id": cell_id,
-                        "cell_index": cell_index
+                await db.execute(
+                    "DELETE FROM notebook_cells WHERE object_id=? AND cell_id=?;",
+                    (object_id, cell_id),
+                )
+                event_data.append(
+                    {
+                        "event": "notebook_cell_delete",
+                        "object": object_id,
+                        "data": {"cell_id": cell_id, "cell_index": cell_index},
                     }
-                })
+                )
             else:
                 # Now we want to find out if we want to create or update a cell. We create a new cell if there is no cell_id,
                 # or if the given cell_id does not exist yet
                 id_exists = "cell_id" in cell
                 if id_exists:
-                    c = await db.execute("SELECT cell_id FROM notebook_cells WHERE object_id=? AND cell_id=?;", (object_id, cell["cell_id"]))
+                    c = await db.execute(
+                        "SELECT cell_id FROM notebook_cells WHERE object_id=? AND cell_id=?;",
+                        (object_id, cell["cell_id"]),
+                    )
                     if (await c.fetchone()) is None:
                         id_exists = False
                     await c.close()
@@ -111,7 +125,10 @@ async def save_notebook_modifications(object_id, data):
                     l.debug(f"Creating new cell {object_id}/{cell_id}")
 
                     # First, get the max index
-                    c = await db.execute("SELECT COALESCE(max(cell_index),-1) FROM notebook_cells WHERE object_id=?;", (object_id,))
+                    c = await db.execute(
+                        "SELECT COALESCE(max(cell_index),-1) FROM notebook_cells WHERE object_id=?;",
+                        (object_id,),
+                    )
                     maxindex = int((await c.fetchone())[0])
                     await c.close()
 
@@ -124,7 +141,10 @@ async def save_notebook_modifications(object_id, data):
                         index = maxindex + 1
                     elif index <= maxindex:
                         # We are inserting a cell somewhere in the middle of the document. Update the indices of all intermediate cells
-                        await db.execute("UPDATE notebook_cells SET cell_index=cell_index+1 WHERE object_id=? AND cell_index>=?", (object_id, index))
+                        await db.execute(
+                            "UPDATE notebook_cells SET cell_index=cell_index+1 WHERE object_id=? AND cell_index>=?",
+                            (object_id, index),
+                        )
 
                     # Prepare the insert query
                     source = ""
@@ -139,28 +159,41 @@ async def save_notebook_modifications(object_id, data):
                         cell_type = cell["cell_type"]
                     if "outputs" in cell:
                         output = cell["outputs"]
-                    await db.execute("INSERT INTO notebook_cells (object_id,cell_id,cell_index,source,metadata,cell_type,outputs) VALUES (?,?,?,?,?,?,?)", (object_id, cell_id, index, source, json.dumps(metadata), cell_type, json.dumps(output)))
+                    await db.execute(
+                        "INSERT INTO notebook_cells (object_id,cell_id,cell_index,source,metadata,cell_type,outputs) VALUES (?,?,?,?,?,?,?)",
+                        (
+                            object_id,
+                            cell_id,
+                            index,
+                            source,
+                            json.dumps(metadata),
+                            cell_type,
+                            json.dumps(output),
+                        ),
+                    )
 
-                    event_data.append({
-                        "event": "notebook_cell_update",
-                        "object": object_id,
-                        "data": {
-                            "cell_id": cell_id,
-                            "source": source,
-                            "cell_index": index,
-                            "metadata": metadata,
-                            "cell_type": cell_type
-                        }
-                    })
-
-                    if "outputs" in cell and len(cell["outputs"]) > 0:
-                        event_data.append({
-                            "event": "notebook_cell_output",
+                    event_data.append(
+                        {
+                            "event": "notebook_cell_update",
                             "object": object_id,
                             "data": {
-                                "cell_id": cell_id
+                                "cell_id": cell_id,
+                                "source": source,
+                                "cell_index": index,
+                                "metadata": metadata,
+                                "cell_type": cell_type,
+                            },
+                        }
+                    )
+
+                    if "outputs" in cell and len(cell["outputs"]) > 0:
+                        event_data.append(
+                            {
+                                "event": "notebook_cell_output",
+                                "object": object_id,
+                                "data": {"cell_id": cell_id},
                             }
-                        })
+                        )
                 else:
                     cell_id = cell["cell_id"]
                     l.debug(f"Updating cell {object_id}/{cell_id}")
@@ -190,30 +223,41 @@ async def save_notebook_modifications(object_id, data):
                     outputs.append(cell_id)
 
                     if setme != "":
-                        await db.execute(f"UPDATE notebook_cells SET {setme} WHERE object_id=? AND cell_id=?;", outputs)
+                        await db.execute(
+                            f"UPDATE notebook_cells SET {setme} WHERE object_id=? AND cell_id=?;",
+                            outputs,
+                        )
 
                     # Next, prepare the event
-                    c = await db.execute("SELECT source,metadata,cell_type,cell_index FROM notebook_cells WHERE object_id=? AND cell_id=?;", (object_id, cell_id))
-                    row = (await c.fetchone())
+                    c = await db.execute(
+                        "SELECT source,metadata,cell_type,cell_index FROM notebook_cells WHERE object_id=? AND cell_id=?;",
+                        (object_id, cell_id),
+                    )
+                    row = await c.fetchone()
                     await c.close()
                     cur_index = int(row[3])
 
-                    event_data.append({
-                        "event": "notebook_cell_update",
-                        "object": object_id,
-                        "data": {
-                            "cell_id": cell_id,
-                            "source": row[0],
-                            "metadata": json.loads(row[1]),
-                            "cell_type": row[2],
-                            "cell_index": cur_index
+                    event_data.append(
+                        {
+                            "event": "notebook_cell_update",
+                            "object": object_id,
+                            "data": {
+                                "cell_id": cell_id,
+                                "source": row[0],
+                                "metadata": json.loads(row[1]),
+                                "cell_type": row[2],
+                                "cell_index": cur_index,
+                            },
                         }
-                    })
+                    )
 
                     # Finally, check if there was an index change, and perform the necessary modifications
                     if "cell_index" in cell and cell["cell_index"] != cur_index:
                         target_index = cell["cell_index"]
-                        c = await db.execute("SELECT max(cell_index) FROM notebook_cells WHERE object_id=?;", (object_id,))
+                        c = await db.execute(
+                            "SELECT max(cell_index) FROM notebook_cells WHERE object_id=?;",
+                            (object_id,),
+                        )
                         max_index = (await c.fetchone())[0]
                         await c.close()
 
@@ -222,21 +266,30 @@ async def save_notebook_modifications(object_id, data):
 
                         if target_index != cur_index:
                             if target_index > cur_index:
-                                await db.execute("UPDATE notebook_cells SET cell_index=cell_index-1 WHERE object_id=? AND cell_index >? AND cell_index<=?;", (object_id, cur_index, target_index))
+                                await db.execute(
+                                    "UPDATE notebook_cells SET cell_index=cell_index-1 WHERE object_id=? AND cell_index >? AND cell_index<=?;",
+                                    (object_id, cur_index, target_index),
+                                )
                             else:
-                                await db.execute("UPDATE notebook_cells SET cell_index=cell_index+1 WHERE object_id=? AND cell_index >=? AND cell_index<?;", (object_id, target_index, cur_index))
-                            await db.execute("UPDATE notebook_cells SET cell_index=? WHERE object_id=? AND cell_id=?;", (target_index, object_id, cell_id))
+                                await db.execute(
+                                    "UPDATE notebook_cells SET cell_index=cell_index+1 WHERE object_id=? AND cell_index >=? AND cell_index<?;",
+                                    (object_id, target_index, cur_index),
+                                )
+                            await db.execute(
+                                "UPDATE notebook_cells SET cell_index=? WHERE object_id=? AND cell_id=?;",
+                                (target_index, object_id, cell_id),
+                            )
                             # Update the event to include the correct index
                             event_data[-1]["data"]["cell_index"] = target_index
 
                     if "outputs" in cell:
-                        event_data.append({
-                            "event": "notebook_cell_output",
-                            "object": object_id,
-                            "data": {
-                                "cell_id": cell_id
+                        event_data.append(
+                            {
+                                "event": "notebook_cell_output",
+                                "object": object_id,
+                                "data": {"cell_id": cell_id},
                             }
-                        })
+                        )
         await db.commit()
 
     # Fires the event, which includes source content (source content is assumed to be relatively small)
@@ -249,16 +302,19 @@ async def notebook_cell_outputs(object_id, cell_id, data):
 
     async with connect_to_database() as db:
         await db.execute("PRAGMA foreign_keys=1")
-        await db.execute("UPDATE notebook_cells SET outputs=json_insert(outputs,'$[' || json_array_length(outputs) || ']',json(?)) WHERE object_id=? AND cell_id=?;", (json.dumps(data), object_id, cell_id))
+        await db.execute(
+            "UPDATE notebook_cells SET outputs=json_insert(outputs,'$[' || json_array_length(outputs) || ']',json(?)) WHERE object_id=? AND cell_id=?;",
+            (json.dumps(data), object_id, cell_id),
+        )
         await db.commit()
 
-    await p.fire({
-        "event": "notebook_cell_output",
-        "object": object_id,
-        "data": {
-            "cell_id": cell_id
+    await p.fire(
+        {
+            "event": "notebook_cell_output",
+            "object": object_id,
+            "data": {"cell_id": cell_id},
         }
-    })
+    )
 
 
 async def notebook_cell_output_clear(object_id, cell_id):
@@ -266,16 +322,19 @@ async def notebook_cell_output_clear(object_id, cell_id):
 
     async with connect_to_database() as db:
         await db.execute("PRAGMA foreign_keys=1")
-        await db.execute("UPDATE notebook_cells SET outputs='[]' WHERE object_id=? AND cell_id=?;", (object_id, cell_id))
+        await db.execute(
+            "UPDATE notebook_cells SET outputs='[]' WHERE object_id=? AND cell_id=?;",
+            (object_id, cell_id),
+        )
         await db.commit()
 
-    await p.fire({
-        "event": "notebook_cell_output",
-        "object": object_id,
-        "data": {
-            "cell_id": cell_id
+    await p.fire(
+        {
+            "event": "notebook_cell_output",
+            "object": object_id,
+            "data": {"cell_id": cell_id},
         }
-    })
+    )
 
 
 async def read_notebook(object_id):
@@ -284,16 +343,21 @@ async def read_notebook(object_id):
     async with connect_to_database() as db:
         await db.execute("PRAGMA foreign_keys=1")
         # First, get the max index
-        async with db.execute("SELECT cell_id,cell_index,source,outputs,metadata,cell_type FROM notebook_cells WHERE object_id=? ORDER BY cell_index ASC;", (object_id,)) as cursor:
+        async with db.execute(
+            "SELECT cell_id,cell_index,source,outputs,metadata,cell_type FROM notebook_cells WHERE object_id=? ORDER BY cell_index ASC;",
+            (object_id,),
+        ) as cursor:
             async for row in cursor:
-                notebook.append({
-                    "cell_id": row[0],
-                    "cell_index": row[1],
-                    "source": row[2],
-                    "outputs": json.loads(row[3]),
-                    "metadata": json.loads(row[4]),
-                    "cell_type": row[5]
-                })
+                notebook.append(
+                    {
+                        "cell_id": row[0],
+                        "cell_index": row[1],
+                        "source": row[2],
+                        "outputs": json.loads(row[3]),
+                        "metadata": json.loads(row[4]),
+                        "cell_type": row[5],
+                    }
+                )
     return notebook
 
 
@@ -302,7 +366,10 @@ async def read_cell(object_id, cell_id):
     async with connect_to_database() as db:
         await db.execute("PRAGMA foreign_keys=1")
         # First, get the max index
-        async with db.execute("SELECT cell_id,cell_index,source,outputs,metadata,cell_type FROM notebook_cells WHERE object_id=? AND cell_id=?", (object_id, cell_id)) as cursor:
+        async with db.execute(
+            "SELECT cell_id,cell_index,source,outputs,metadata,cell_type FROM notebook_cells WHERE object_id=? AND cell_id=?",
+            (object_id, cell_id),
+        ) as cursor:
             async for row in cursor:
                 return {
                     "cell_id": row[0],
@@ -310,34 +377,42 @@ async def read_cell(object_id, cell_id):
                     "source": row[2],
                     "outputs": json.loads(row[3]),
                     "metadata": json.loads(row[4]),
-                    "cell_type": row[5]
+                    "cell_type": row[5],
                 }
 
 
 async def kernel_state_update(object_id, state):
     try:
         # Trying to update state for an object that was deleted fails
-        await p.fire({
-            "event": "notebook_kernel_state",
-            "object": object_id,
-            "data": {
-                "state": state
+        await p.fire(
+            {
+                "event": "notebook_kernel_state",
+                "object": object_id,
+                "data": {"state": state},
             }
-        })
+        )
     except:
         pass
 
+
 async def update_last_modified(r):
-    cur_date = datetime.today().strftime('%Y-%m-%d')
-    if r["last_modified"]!=cur_date:
+    cur_date = datetime.today().strftime("%Y-%m-%d")
+    if r["last_modified"] != cur_date:
         l.debug(f"Updating modification time of {r['object']} to {cur_date}")
-        await (await p.objects[r['object']]).update(last_modified=cur_date)
+        await (await p.objects[r["object"]]).update(last_modified=cur_date)
+
 
 async def kernel_cell_output(object_id, cell_id, data):
     await notebook_cell_outputs(object_id, cell_id, data)
 
-m = manager.Manager(p, config_file, ipy_config,
-                    kernelStateChange=kernel_state_update, kernelOutput=kernel_cell_output)
+
+m = manager.Manager(
+    p,
+    config_file,
+    ipy_config,
+    kernelStateChange=kernel_state_update,
+    kernelOutput=kernel_cell_output,
+)
 
 
 @routes.get("/notebook")
@@ -356,7 +431,9 @@ async def update_notebook(request):
     data = await request.json()
     for d in data:
         if "outputs" in d and len(d["outputs"]) > 0:
-            return web.Response(status=403, body="Setting non-empty outputs not permitted")
+            return web.Response(
+                status=403, body="Setting non-empty outputs not permitted"
+            )
     # try:
     await save_notebook_modifications(r["object"], data)
     await update_last_modified(r)
@@ -374,15 +451,15 @@ async def ipynb_get(request):
     r = p.objectRequest(request)
     heedy_nb = await read_notebook(r["object"])
 
-    cells = [{
-        "cell_type": "code",
-        "execution_count": None,
-        "metadata": {
-            "collapsed": True
-        },
-        "source": manager.kernel_init_code,
-        "outputs": []
-    }]
+    cells = [
+        {
+            "cell_type": "code",
+            "execution_count": None,
+            "metadata": {"collapsed": True},
+            "source": manager.kernel_init_code,
+            "outputs": [],
+        }
+    ]
 
     for c in heedy_nb:
         cell_metadata = {}
@@ -390,36 +467,39 @@ async def ipynb_get(request):
             "cell_type": c["cell_type"],
             "execution_count": None,
             "metadata": {},
-            "source": c["source"]
+            "source": c["source"],
         }
         if c["cell_type"] == "code":
             curcell["metadata"] = {
-                "collapsed": False if not "collapsed" in c["metadata"] else c["metadata"]["collapsed"],
-                "scrolled": False if not "scrolled" in c["metadata"] else c["metadata"]["scrolled"],
+                "collapsed": False
+                if not "collapsed" in c["metadata"]
+                else c["metadata"]["collapsed"],
+                "scrolled": False
+                if not "scrolled" in c["metadata"]
+                else c["metadata"]["scrolled"],
             }
             curcell["outputs"] = c["outputs"]
         cells.append(curcell)
 
     ipython_notebook = {
         "metadata": {
-            "kernel_info": {
-                "name": "python3"
-            },
+            "kernel_info": {"name": "python3"},
             "language_info": {
                 "name": "python",
                 "mimetype": "text/x-python",
-                "codemirror_mode": {
-                    "name": "ipython",
-                    "version": 3
-                },
-                "version": "3.7.3"
-            }
+                "codemirror_mode": {"name": "ipython", "version": 3},
+                "version": "3.7.3",
+            },
         },
         "nbformat": 4,
         "nbformat_minor": 0,
-        "cells": cells
+        "cells": cells,
     }
-    return web.Response(text=json.dumps(ipython_notebook), content_type="application/x-ipynb+json", headers={"Content-Disposition": "attachment"})
+    return web.Response(
+        text=json.dumps(ipython_notebook),
+        content_type="application/x-ipynb+json",
+        headers={"Content-Disposition": "attachment"},
+    )
 
 
 @routes.post("/notebook.ipynb")
@@ -437,11 +517,11 @@ async def post_ipython(request):
 
         for c in data["cells"]:
             if isinstance(c["source"], list):
-                c["source"] = ''.join(c["source"])
+                c["source"] = "".join(c["source"])
             cur_cell = {
                 "cell_type": c["cell_type"],
                 "source": c["source"],
-                "metadata": c["metadata"]
+                "metadata": c["metadata"],
             }
             if "outputs" in c:
                 cur_cell["outputs"] = c["outputs"]
@@ -462,7 +542,7 @@ async def get_cell(request):
         return web.Response(status=403, body="Not permitted")
     r = p.objectRequest(request)
 
-    cell_content = await read_cell(r["object"], request.match_info['cellid'])
+    cell_content = await read_cell(r["object"], request.match_info["cellid"])
 
     return web.json_response(cell_content)
 
@@ -473,7 +553,7 @@ async def run_cell(request):
         return web.Response(status=403, body="Not permitted")
     r = p.objectRequest(request)
     data = await request.json()
-    cell_content = await read_cell(r["object"], data['cell_id'])
+    cell_content = await read_cell(r["object"], data["cell_id"])
     # print(cell_content,data["source"])
     if cell_content["source"] != data["source"]:
         l.error("Cell source does not match")
@@ -539,7 +619,7 @@ async def notebook_deleted(request):
 
 
 @routes.post("/user_delete")
-async def notebook_deleted(request):
+async def notebook_deleted_user(request):
     evt = await request.json()
     l.debug(f"User Deleted: {evt}")
     asyncio.create_task(m.close_server(evt["user"]))
@@ -563,14 +643,15 @@ async def runme():
     loop = asyncio.get_event_loop()
     signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
     for sig in signals:
-        loop.add_signal_handler(
-            sig, lambda sig=sig: asyncio.create_task(shutdown()))
+        loop.add_signal_handler(sig, lambda sig=sig: asyncio.create_task(shutdown()))
 
     # Make sure the notebook cells table exists
     async with connect_to_database() as db:
         await db.execute("PRAGMA foreign_keys=1")
         hastable = True
-        async with db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='notebook_cells';") as cursor:
+        async with db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='notebook_cells';"
+        ) as cursor:
             if await cursor.fetchone() is None:
                 hastable = False
         if not hastable:

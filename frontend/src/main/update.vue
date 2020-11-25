@@ -55,7 +55,7 @@ export default {
       let mod = this.modified;
       if (Object.keys(this.modified).length > 0) {
         console.log("UPDATING", mod);
-        let result = await this.$app.api(
+        let result = await this.$frontend.rest(
           "PATCH",
           `api/objects/${this.object.id}`,
           mod
@@ -81,7 +81,7 @@ export default {
           `Are you sure you want to delete '${this.object.name}'? This deletes all associated data.`
         )
       ) {
-        let res = await this.$app.api(
+        let res = await this.$frontend.rest(
           "DELETE",
           `/api/objects/${this.object.id}`
         );
@@ -107,7 +107,7 @@ export default {
         return this.object.description;
       },
       set(v) {
-        this.$app.vue.set(this.modified, "description", v);
+        this.$frontend.vue.set(this.modified, "description", v);
       }
     },
     name: {
@@ -118,7 +118,7 @@ export default {
         return this.object.name;
       },
       set(v) {
-        this.$app.vue.set(this.modified, "name", v);
+        this.$frontend.vue.set(this.modified, "name", v);
       }
     },
     tags: {
@@ -129,7 +129,7 @@ export default {
         return this.object.tags;
       },
       set(v) {
-        this.$app.vue.set(this.modified, "tags", v);
+        this.$frontend.vue.set(this.modified, "tags", v);
       }
     }
   }

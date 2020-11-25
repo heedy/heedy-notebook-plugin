@@ -7,12 +7,13 @@ import replace from "@rollup/plugin-replace";
 import {
     terser
 } from "rollup-plugin-terser";
+import gzipPlugin from "rollup-plugin-gzip";
 
 import glob from "glob";
 
 const plugin_name = "notebook"
 
-const production = !process.env.NODE_ENV === 'debug';
+const production = !(process.env.NODE_ENV === 'debug');
 const plugins = [
     VuePlugin({
         // https://github.com/vuejs/rollup-plugin-vue/issues/238
@@ -42,6 +43,9 @@ if (production) {
         mangle: true,
         module: true
     }));
+    plugins.push(gzipPlugin());
+} else {
+    console.log("Running debug build");
 }
 
 function checkExternal(modid, parent, isResolved) {

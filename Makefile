@@ -8,6 +8,8 @@ all: build
 phony:
 
 build: frontend
+	# Remove original mjs files in production builds
+	find ./dist/notebook/public/static -name "*.gz" -exec sh -c 'rm "$${0%.gz}"' {} ';'
 	cd dist;zip -r heedy-notebook-plugin-${VERSION}.zip ./notebook
 
 dist/notebook: node_modules

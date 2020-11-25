@@ -73,7 +73,7 @@ export default {
         icon: this.$refs.iconEditor.getImage()
       };
 
-      let result = await this.$app.api("POST", `api/objects`, toCreate);
+      let result = await this.$frontend.rest("POST", `api/objects`, toCreate);
 
       if (!result.response.ok) {
         this.alert = result.data.error_description;
@@ -106,7 +106,7 @@ export default {
         false
       );
       let endRequest = async () => {
-        await this.$app.api("DELETE", `api/objects/${result.data.id}`);
+        await this.$frontend.rest("DELETE", `api/objects/${result.data.id}`);
         this.file = null;
         this.uploading = false;
         this.loading = false;
