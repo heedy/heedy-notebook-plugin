@@ -15,7 +15,7 @@ import uuid
 def free_port():
     # https://stackoverflow.com/questions/1365265/on-localhost-how-do-i-pick-a-free-port-number
     with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(('localhost', 0))
+        s.bind(("localhost", 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
 
@@ -31,6 +31,7 @@ async def wait_until_open(port):
         except:
             timeout -= 0.1
             await asyncio.sleep(0.1)
+
 
 # This code is run to initialize the kernel
 kernel_init_code = """# HEEDY NOTEBOOK HEADER
@@ -48,8 +49,9 @@ h = heedy.App(os.getenv("HEEDY_ACCESS_TOKEN"),os.getenv("HEEDY_SERVER_URL")).own
 
 
 class Kernel:
-
-    def __init__(self, session, url, headers, kernel_id, oid, state_update, output_update):
+    def __init__(
+        self, session, url, headers, kernel_id, oid, state_update, output_update
+    ):
         self.state = "starting"
         self.s = session
         self.url = url
@@ -70,6 +72,7 @@ class Kernel:
 
         async def doNothing(x, y):
             pass
+
         self.state_update = doNothing
         await su(self.oid, "off")
 
@@ -77,14 +80,16 @@ class Kernel:
         await self.s.delete(f"{self.url}/kernels/{self.id}", headers=self.headers)
 
     async def interrupt(self):
-        await self.s.post(f"{self.url}/kernels/{self.id}/interrupt", headers=self.headers)
+        await self.s.post(
+            f"{self.url}/kernels/{self.id}/interrupt", headers=self.headers
+        )
 
     async def run(self, cell_id, code):
         header = {
             "msg_id": cell_id + "_" + uuid.uuid4().hex,
             "session": self.oid,
             "date": datetime.datetime.now().isoformat(),
-            "msg_type": "execute_request"
+            "msg_type": "execute_request",
         }
         msg = {
             "header": header,
@@ -100,8 +105,8 @@ class Kernel:
                 "silent": False,
                 "allow_stdin": False,
                 "stop_on_error": True,
-                "store_history": True
-            }
+                "store_history": True,
+            },
         }
         if self.ws is None:
             await self.ws_wait.wait()
@@ -109,14 +114,17 @@ class Kernel:
 
     async def websocket(self):
         self._log.debug("Running websocket")
-        ws = await self.s.ws_connect(f"{self.url}/kernels/{self.id}/channels?session_id={self.oid}", headers=self.headers)
+        ws = await self.s.ws_connect(
+            f"{self.url}/kernels/{self.id}/channels?session_id={self.oid}",
+            headers=self.headers,
+        )
 
         # Send the initialization message
         header = {
             "msg_id": uuid.uuid4().hex,
             "session": self.oid,
             "date": datetime.datetime.now().isoformat(),
-            "msg_type": "execute_request"
+            "msg_type": "execute_request",
         }
         msg = {
             "header": header,
@@ -132,8 +140,8 @@ class Kernel:
                 "silent": True,
                 "allow_stdin": False,
                 "stop_on_error": True,
-                "store_history": True
-            }
+                "store_history": True,
+            },
         }
         await ws.send_str(json.dumps(msg))
 
@@ -149,7 +157,7 @@ class Kernel:
 
                 # Now see what type of message we got
                 data = json.loads(md)
-                self._log.debug('>>> msg: %s', pprint.pformat(data))
+                self._log.debug(">>> msg: %s", pprint.pformat(data))
                 msg_type = data["msg_type"]
                 if msg_type == "status":
                     self.state = data["content"]["execution_state"]
@@ -169,13 +177,19 @@ class Kernel:
             elif ws.closed:
                 return
             else:
-                raise ValueError(
-                    'unexpected message type: %s', pprint.pformat(msg))
+                raise ValueError("unexpected message type: %s", pprint.pformat(msg))
 
 
 class Server:
-
-    def __init__(self, folder, port, headers, username="", onStateChange=lambda x, y: print(x, y), onOutput=lambda x, y, z: print(x, y, z)):
+    def __init__(
+        self,
+        folder,
+        port,
+        headers,
+        username="",
+        onStateChange=lambda x, y: print(x, y),
+        onOutput=lambda x, y, z: print(x, y, z),
+    ):
         self.port = port
         self.folder = folder
         self.headers = headers
@@ -197,25 +211,32 @@ class Server:
                 return self.kernel(oid)
             return self.kernels[oid]["kernel"]
 
-        kernel_obj = {
-            "event": asyncio.Event()
-        }
+        kernel_obj = {"event": asyncio.Event()}
 
         self.kernels[oid] = kernel_obj
 
         # Create a new kernel
-        res = await self.s.post(f"{self.url}/kernels", headers=self.headers, data=json.dumps({
-            "name": "python3"
-        }))
+        res = await self.s.post(
+            f"{self.url}/kernels",
+            headers=self.headers,
+            data=json.dumps({"name": "python3"}),
+        )
         kernel_response = await res.json()
         self._log.debug(f"Started kernel {kernel_response['id']} for {oid}")
-        k = Kernel(self.s, self.url, self.headers,
-                   kernel_response["id"], oid, self.onStateChange, self.onOutput)
+        k = Kernel(
+            self.s,
+            self.url,
+            self.headers,
+            kernel_response["id"],
+            oid,
+            self.onStateChange,
+            self.onOutput,
+        )
         kernel_obj["kernel"] = k
         kernel_obj["event"].set()
         return k
 
-        #self._log.debug("Opening kernel websocket for %s", oid)
+        # self._log.debug("Opening kernel websocket for %s", oid)
         # return await self.s.ws_connect(f"{self.url}/kernels/{kid}/channels?session_id={sid}", headers=self.headers)
 
     async def close_kernel(self, oid):
@@ -245,15 +266,22 @@ class Server:
 class Manager:
     _log = logging.getLogger("notebook.Manager")
 
-    def __init__(self, plugin, config_file, ipy_config_dir, kernelStateChange=lambda x, y: print(x, y), kernelOutput=lambda x, y, z: print(x, y, z), python=sys.executable):
-        self.python = python
+    def __init__(
+        self,
+        plugin,
+        config_file,
+        ipy_config_dir,
+        kernelStateChange=lambda x, y: print(x, y),
+        kernelOutput=lambda x, y, z: print(x, y, z),
+        python=sys.executable,
+    ):
+        self.executable = os.path.join(os.path.dirname(python), "jupyter-notebook")
         self.config_file = config_file
         self.ipydir = ipy_config_dir
         self.p = plugin
         self.kernelStateChange = kernelStateChange
         self.kernelOutput = kernelOutput
-        self.notebook_dir = os.path.join(
-            self.p.config['data_dir'], 'notebooks')
+        self.notebook_dir = os.path.join(self.p.config["data_dir"], "notebooks")
 
         self.servers = {}
         self.closing = False
@@ -275,8 +303,9 @@ class Manager:
         }
 
         # Get the access token from the plugin
-        papps = await self.p.apps(owner=username, plugin=self.p.name +
-                                  ":" + "notebook", token=True)
+        papps = await self.p.apps(
+            owner=username, plugin=self.p.name + ":" + "notebook", token=True
+        )
 
         access_token = papps[0]["access_token"]
         port = free_port()
@@ -290,12 +319,16 @@ class Manager:
         penv["HEEDY_ACCESS_TOKEN"] = access_token
         penv["HEEDY_SERVER_URL"] = self.p.session.url
         penv["IPYTHONDIR"] = self.ipydir
-        self._log.debug(f"Starting server for {username} on port {port}")
-        proc = await asyncio.create_subprocess_exec(self.python, "-m", "jupyter", "notebook",
-                                                    f"--config={self.config_file}",
-                                                    f"--NotebookApp.notebook_dir={notebook_dir}",
-                                                    f"--NotebookApp.port={port}",
-                                                    env=penv)
+        self._log.debug(
+            f"Starting server {self.executable} for {username} on port {port}"
+        )
+        proc = await asyncio.create_subprocess_exec(
+            self.executable,
+            f"--config={self.config_file}",
+            f"--NotebookApp.notebook_dir={notebook_dir}",
+            f"--NotebookApp.port={port}",
+            env=penv,
+        )
         if self.closing:
             proc.terminate()
         else:
@@ -304,11 +337,12 @@ class Manager:
         await wait_until_open(port)
 
         self.servers[username]["server"] = Server(
-            notebook_dir, port, {
-                'Authorization': 'Token todoChangeMeBeforeRelease'},
+            notebook_dir,
+            port,
+            {"Authorization": "Token todoChangeMeBeforeRelease"},
             username=username,
             onStateChange=self.kernelStateChange,
-            onOutput=self.kernelOutput
+            onOutput=self.kernelOutput,
         )
 
         self._log.debug(f"Server for {username} ready")
