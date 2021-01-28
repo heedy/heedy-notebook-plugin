@@ -327,6 +327,7 @@ class Manager:
             f"--config={self.config_file}",
             f"--NotebookApp.notebook_dir={notebook_dir}",
             f"--NotebookApp.port={port}",
+            "--allow-root",
             env=penv,
         )
         if self.closing:
