@@ -45,6 +45,7 @@ plt.rcParams["figure.figsize"] = (10, 8) # Make figures larger by default
 import os
 import heedy
 h = heedy.App(os.getenv("HEEDY_ACCESS_TOKEN"),os.getenv("HEEDY_SERVER_URL")).owner
+h.read() # Read the user, so that print(h) gives cached info
 """
 
 
