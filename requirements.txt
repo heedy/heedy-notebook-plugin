@@ -1,8 +1,9 @@
 
-heedy>=0.0.8
+heedy>=0.1.2
 aiosqlite
 aiohttp
 matplotlib
+pandas
 
 jupyter>=1.0.0
 notebook>=6.0.0

@@ -45,7 +45,13 @@ plt.rcParams["figure.figsize"] = (10, 8) # Make figures larger by default
 import os
 import heedy
 h = heedy.App(os.getenv("HEEDY_ACCESS_TOKEN"),os.getenv("HEEDY_SERVER_URL")).owner
-h.read() # Read the user, so that print(h) gives cached info
+
+# Read the user, so that print(h) gives cached info. This might fail if the app doesn't
+# have permissions to read the owner.
+try:
+    h.read() 
+except:
+    pass
 """
 
 
@@ -318,7 +324,7 @@ class Manager:
 
         penv = os.environ.copy()
         penv["HEEDY_ACCESS_TOKEN"] = access_token
-        penv["HEEDY_SERVER_URL"] = self.p.session.url
+        penv["HEEDY_SERVER_URL"] = self.p.config["config"]["api"]
         penv["IPYTHONDIR"] = self.ipydir
         self._log.debug(
             f"Starting server {self.executable} for {username} on port {port}"
