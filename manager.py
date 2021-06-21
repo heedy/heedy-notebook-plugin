@@ -10,6 +10,7 @@ from contextlib import closing
 import pprint
 import datetime
 import uuid
+from pathlib import Path
 
 
 def free_port():
@@ -34,25 +35,7 @@ async def wait_until_open(port):
 
 
 # This code is run to initialize the kernel
-kernel_init_code = """# HEEDY NOTEBOOK HEADER
-# This code is run automatically on kernel start by heedy 
-# It is assumed that jupyter is set up to inline images, and to import pylab
-
-plt.style.use("seaborn")                 # Use the seaborn style
-plt.rcParams["figure.figsize"] = (10, 8) # Make figures larger by default
-
-# You will need an app access token to connect to heedy
-import os
-import heedy
-h = heedy.App(os.getenv("HEEDY_ACCESS_TOKEN"),os.getenv("HEEDY_SERVER_URL")).owner
-
-# Read the user, so that print(h) gives cached info. This might fail if the app doesn't
-# have permissions to read the owner.
-try:
-    h.read() 
-except:
-    pass
-"""
+kernel_init_code = (Path(__file__).parent / "notebook_header.py").read_text()
 
 
 class Kernel:

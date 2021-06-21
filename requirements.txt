@@ -1,9 +1,13 @@
 
-heedy>=0.1.2
+heedy>=0.1.3
 aiosqlite
 aiohttp
 matplotlib
 pandas
+seaborn
+
+scikit-learn
+statsmodels
 
 jupyter>=1.0.0
 notebook>=6.0.0

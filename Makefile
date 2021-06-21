@@ -35,3 +35,5 @@ debug: phony frontend/node_modules dist/notebook
 
 clean:
 	rm -rf ./dist
+	rm -rf ./node_modules
+	rm -rf ./frontend/node_modules
