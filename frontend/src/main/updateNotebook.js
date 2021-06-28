@@ -122,7 +122,7 @@ export default function updateNotebook(notebook, changeList, markModified = fals
                 //console.log("Cell existss")
                 // The cell already exists. First, update the cell to the newest values
                 let old_index = notebook[cell_id].cell_index;
-                let new_index = c.cell_index;
+                let new_index = c.cell_index || notebook[cell_id].cell_index;
                 notebook[cell_id] = {
                     ...notebook[cell_id],
                     ...c

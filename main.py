@@ -12,11 +12,15 @@ from datetime import datetime
 
 import manager
 
-logging.basicConfig(level=logging.INFO)
-l = logging.getLogger("notebook")
 
 p = Plugin()
 
+
+if "verbose" in p.config["config"] and p.config["config"]["verbose"]:
+    logging.basicConfig(level=logging.DEBUG)
+else:
+    logging.basicConfig(level=logging.INFO)
+l = logging.getLogger("notebook")
 
 config_file = os.path.join(p.config["plugin_dir"], "jupyter_heedy_config.py")
 ipy_config = os.path.join(p.config["plugin_dir"], "ipynb")
@@ -189,7 +193,7 @@ async def save_notebook_modifications(object_id, data):
                     if "outputs" in cell and len(cell["outputs"]) > 0:
                         event_data.append(
                             {
-                                "event": "notebook_cell_output",
+                                "event": "notebook_cell_outputs",
                                 "object": object_id,
                                 "data": {"cell_id": cell_id},
                             }
@@ -285,7 +289,7 @@ async def save_notebook_modifications(object_id, data):
                     if "outputs" in cell:
                         event_data.append(
                             {
-                                "event": "notebook_cell_output",
+                                "event": "notebook_cell_outputs",
                                 "object": object_id,
                                 "data": {"cell_id": cell_id},
                             }
@@ -297,20 +301,50 @@ async def save_notebook_modifications(object_id, data):
         await p.fire(evt)
 
 
+def fixlines(fulltext):
+    lines = fulltext.splitlines(True)
+    newlines = []
+    for i in range(len(lines) - 1):
+        if lines[i][-1] != "\r":
+            newlines.append(lines[i])
+    return "".join(newlines) + lines[-1]
+
+
 async def notebook_cell_outputs(object_id, cell_id, data):
     l.debug(f"Updating outputs for {object_id}/{cell_id}")
 
     async with connect_to_database() as db:
         await db.execute("PRAGMA foreign_keys=1")
-        await db.execute(
-            "UPDATE notebook_cells SET outputs=json_insert(outputs,'$[' || json_array_length(outputs) || ']',json(?)) WHERE object_id=? AND cell_id=?;",
-            (json.dumps(data), object_id, cell_id),
-        )
+
+        # if the output type is stdout or stderr, append directly to the original values, since many things use terminal sequences
+        updated = False
+        if "output_type" in data and data["output_type"] == "stream":
+            rows = list(
+                await db.execute_fetchall(
+                    "SELECT json_each.key AS k, json_extract(json_each.value,'$.text') AS v FROM notebook_cells, json_each(outputs) WHERE json_extract(json_each.value,'$.output_type')='stream' AND json_extract(json_each.value,'$.name')=? AND object_id=? AND cell_id=?",
+                    (data["name"], object_id, cell_id),
+                )
+            )
+            if len(rows) > 0:
+                fulltext = fixlines(rows[0][1] + data["text"])
+                # There can be \r replacing previous lines, so correct for that
+                await db.execute(
+                    f"UPDATE notebook_cells SET outputs=json_replace(outputs,'$[{rows[0][0]}].text',json(?)) WHERE object_id=? AND cell_id=?;",
+                    (json.dumps(fulltext), object_id, cell_id),
+                )
+                updated = True
+            else:
+                data["text"] = fixlines(data["text"])
+        if not updated:
+            await db.execute(
+                "UPDATE notebook_cells SET outputs=json_insert(outputs,'$[' || json_array_length(outputs) || ']',json(?)) WHERE object_id=? AND cell_id=?;",
+                (json.dumps(data), object_id, cell_id),
+            )
         await db.commit()
 
     await p.fire(
         {
-            "event": "notebook_cell_output",
+            "event": "notebook_cell_outputs",
             "object": object_id,
             "data": {"cell_id": cell_id},
         }
@@ -330,9 +364,9 @@ async def notebook_cell_output_clear(object_id, cell_id):
 
     await p.fire(
         {
-            "event": "notebook_cell_output",
+            "event": "notebook_cell_outputs",
             "object": object_id,
-            "data": {"cell_id": cell_id},
+            "data": {"cell_id": cell_id, "outputs": []},
         }
     )
 

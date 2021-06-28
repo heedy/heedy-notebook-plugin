@@ -7,25 +7,36 @@
         </v-flex>
         <v-flex sm7 md8 xs12>
           <v-container>
-            <v-text-field label="Name" placeholder="My Notebook" v-model="name"></v-text-field>
+            <v-text-field
+              label="Name"
+              placeholder="My Notebook"
+              v-model="name"
+              autofocus
+            ></v-text-field>
             <v-text-field
               label="Description"
               placeholder="This notebook does analysis"
               v-model="description"
             ></v-text-field>
             <h-tag-editor v-model="tags" />
-            <v-radio-group v-model="notebook" style="margin-top:-10px;margin-bottom: -50px;">
+            <v-radio-group
+              v-model="notebook"
+              style="margin-top: -10px; margin-bottom: -50px"
+            >
               <v-radio value="blank" label="Blank Notebook"></v-radio>
               <v-radio value="upload" label="Upload from File"></v-radio>
             </v-radio-group>
-            <div v-if="notebook=='upload'" style="margin-top:25px">
+            <div v-if="notebook == 'upload'" style="margin-top: 25px">
               <v-file-input
                 v-model="file"
                 v-if="!uploading"
                 show-size
                 label="Jupyter Notebook (.ipynb)"
               ></v-file-input>
-              <v-progress-linear v-else :value="uploadPercent"></v-progress-linear>
+              <v-progress-linear
+                v-else
+                :value="uploadPercent"
+              ></v-progress-linear>
               <v-btn v-if="uploading" dark @click="cancelUpload">Cancel</v-btn>
             </div>
           </v-container>
@@ -51,10 +62,10 @@ export default {
     uploading: false,
     uploadPercent: 0,
     file: null,
-    xhr: null
+    xhr: null,
   }),
   methods: {
-    create: async function() {
+    create: async function () {
       if (this.loading) return;
 
       this.loading = true;
@@ -70,7 +81,7 @@ export default {
         type: "notebook",
         description: this.description,
         tags: this.tags,
-        icon: this.$refs.iconEditor.getImage()
+        icon: this.$refs.iconEditor.getImage(),
       };
 
       let result = await this.$frontend.rest("POST", `api/objects`, toCreate);
@@ -98,7 +109,7 @@ export default {
       var xhr = new XMLHttpRequest();
       xhr.upload.addEventListener(
         "progress",
-        evt => {
+        (evt) => {
           if (evt.lengthComputable) {
             this.uploadPercent = Math.floor((100 * evt.loaded) / evt.total);
           }
@@ -112,7 +123,7 @@ export default {
         this.loading = false;
         this.xhr = null;
       };
-      xhr.addEventListener("load", evt => {
+      xhr.addEventListener("load", (evt) => {
         if (evt.target.status != 200) {
           try {
             this.alert =
@@ -128,12 +139,12 @@ export default {
         this.loading = false;
         this.$router.replace({ path: `/objects/${result.data.id}` });
       });
-      xhr.addEventListener("error", evt => {
+      xhr.addEventListener("error", (evt) => {
         console.log("ERROR", evt);
         endRequest();
         this.alert = "Upload failed";
       });
-      xhr.addEventListener("abort", evt => {
+      xhr.addEventListener("abort", (evt) => {
         console.log("ABORT", evt);
         endRequest();
       });
@@ -147,7 +158,7 @@ export default {
       } else {
         this.uploading = false;
       }
-    }
-  }
+    },
+  },
 };
 </script>
