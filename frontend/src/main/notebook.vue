@@ -1,18 +1,28 @@
 <template>
   <v-flex>
-    <draggable :value="cells" :disabled="readonly" @end="onMove" handle=".draghandle">
+    <draggable
+      :value="cells"
+      :disabled="readonly"
+      @end="onMove"
+      handle=".draghandle"
+    >
       <cell
-        v-for="(c,i) in cells"
+        v-for="(c, i) in cells"
         :ref="c.cell_id"
         :key="c.cell_id"
         :cell="c"
-        @undo="() => $emit('undo',{cell_id: c.cell_id})"
-        @update="(v) => $emit('update',v)"
-        @delete="() => $emit('update',{cell_id: c.cell_id,delete: true})"
-        @addAbove="() => $emit('update',{cell_id: mkid(),cell_index: c.cell_index})"
-        @addBelow="() => $emit('update',{cell_id: mkid(),cell_index: c.cell_index+1})"
-        @run="(v)=> run(c.cell_id,v,i)"
-        @save="$emit('save')"
+        @undo="() => $emit('undo', { cell_id: c.cell_id })"
+        @code-undo="codeUndo = true"
+        @update="(v) => $emit('update', v)"
+        @delete="() => $emit('update', { cell_id: c.cell_id, delete: true })"
+        @addAbove="
+          () => $emit('update', { cell_id: mkid(), cell_index: c.cell_index })
+        "
+        @addBelow="
+          () =>
+            $emit('update', { cell_id: mkid(), cell_index: c.cell_index + 1 })
+        "
+        @run="(v) => run(c.cell_id, v, i)"
         :readonly="readonly"
       />
     </draggable>
@@ -25,18 +35,21 @@ import uuidv4 from "../../dist/uuid.mjs";
 export default {
   components: {
     Cell,
-    Draggable
+    Draggable,
   },
   props: {
     contents: Object,
-    readonly: Boolean
+    readonly: Boolean,
   },
+  data: () => ({
+    codeUndo: false,
+  }),
   computed: {
     cells() {
       let c = Object.values(this.contents);
       c.sort((a, b) => a["cell_index"] - b["cell_index"]);
       return c;
-    }
+    },
   },
   watch: {
     contents(nv, ov) {
@@ -44,7 +57,7 @@ export default {
       if (Object.keys(nv).length == 0 && !this.readonly) {
         this.$emit("update", { cell_id: uuidv4() });
       }
-    }
+    },
   },
   methods: {
     mkid() {
@@ -54,13 +67,13 @@ export default {
       console.log("Cell drag-drop", evt);
       this.$emit("update", {
         cell_id: this.cells[evt.oldIndex].cell_id,
-        cell_index: evt.newIndex
+        cell_index: evt.newIndex,
       });
     },
     run(cell_id, source, i) {
       this.$emit("run", {
         cell_id: cell_id,
-        source: source
+        source: source,
       });
       // Find the next element to focus
       for (let j = i + 1; j < this.cells.length; j++) {
@@ -75,12 +88,35 @@ export default {
         () => this.$refs[this.cells[this.cells.length - 1].cell_id][0].focus(),
         100
       );
-    }
+    },
+    keyBindings(e) {
+      if (e.keyCode === 83 && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        this.$emit("save");
+        return;
+      }
+      if (e.keyCode === 90 && (e.ctrlKey || e.metaKey)) {
+        // CodeMirror has its own undo handling, so we don't want to interfere
+        if (!this.codeUndo) {
+          e.preventDefault();
+          this.$emit("undo", {});
+          return;
+        }
+        this.codeUndo = false;
+        return;
+      }
+    },
+  },
+  mounted() {
+    document.addEventListener("keydown", this.keyBindings);
+  },
+  beforeDestroy() {
+    document.removeEventListener("keydown", this.keyBindings);
   },
   created() {
     if (this.cells.length == 0 && !this.readonly) {
       this.$emit("update", { cell_id: uuidv4() });
     }
-  }
+  },
 };
 </script>

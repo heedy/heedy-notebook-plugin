@@ -18,6 +18,7 @@
         :count="execution_count"
         :modified="modified"
         @undo="$emit('undo')"
+        @code-undo="$emit('code-undo')"
         @convert="convert"
         @delete="$emit('delete')"
         @addAbove="$emit('addAbove')"

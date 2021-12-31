@@ -30,7 +30,7 @@ export default {
         },
         undoNotebookUpdates(state, v) {
             if (v.data.cell_id === undefined) {
-                Vue.set(state.notebooks[v.id], "updates", []);
+                Vue.set(state.notebooks[v.id], "updates", state.notebooks[v.id].updates.slice(0, -1));
                 return;
             }
             Vue.set(state.notebooks[v.id], "updates", state.notebooks[v.id].updates.filter((u) => u.cell_id != v.data.cell_id));
@@ -60,15 +60,15 @@ export default {
                 });
             }
         },
-        setDedup(state,v) {
-            Vue.set(state.cell_update_dedup,v.key,v.value);
+        setDedup(state, v) {
+            Vue.set(state.cell_update_dedup, v.key, v.value);
         },
-        clearDedup(state,v) {
-            if (state.cell_update_dedup[v.key]!==undefined) {
+        clearDedup(state, v) {
+            if (state.cell_update_dedup[v.key] !== undefined) {
                 let resolve = state.cell_update_dedup[v.key];
-                Vue.delete(state.cell_update_dedup,v.key);
-                if (resolve!=null) {
-                    setTimeout(resolve,0);
+                Vue.delete(state.cell_update_dedup, v.key);
+                if (resolve != null) {
+                    setTimeout(resolve, 0);
                 }
             }
         }
@@ -122,17 +122,17 @@ export default {
                 return;
             }
             let dedup_key = `${q.id}/${q.cell_id}`;
-            if (state.cell_update_dedup[dedup_key]!==undefined) {
+            if (state.cell_update_dedup[dedup_key] !== undefined) {
                 let dkey = state.cell_update_dedup[dedup_key];
-                if (dkey!=null) {
+                if (dkey != null) {
                     return; // There is already someone waiting to query, so no need to pile up
                 }
-                await (new Promise((resolve,reject)=> {
+                await (new Promise((resolve, reject) => {
                     console.vlog(`Deferring cell read for ${dedup_key}`);
-                    commit("setDedup",{key: dedup_key, value: resolve});
+                    commit("setDedup", { key: dedup_key, value: resolve });
                 }));
                 console.vlog(`Resuming cell read for ${dedup_key}`);
-            } else if (q.data.outputs!==undefined) {
+            } else if (q.data.outputs !== undefined) {
                 console.vlog(`Using cell output contained in event message for ${dedup_key}`);
                 // Outputs were sent in the message itself, so set them directly!
                 commit("applyNotebookUpdates", {
@@ -142,7 +142,7 @@ export default {
                 return;
 
             }
-            commit("setDedup",{key: dedup_key,value: null});
+            commit("setDedup", { key: dedup_key, value: null });
             let res = await api("GET", `api/objects/${q.id}/notebook/cell/${q.cell_id}`);
             if (!res.response.ok) {
                 commit("alert", {
@@ -156,7 +156,7 @@ export default {
                 id: q.id,
                 updates: [res.data]
             });
-            commit("clearDedup",{key: dedup_key});
+            commit("clearDedup", { key: dedup_key });
 
         },
         runNotebookCell: async function ({

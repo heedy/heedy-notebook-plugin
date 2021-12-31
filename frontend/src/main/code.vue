@@ -2,25 +2,53 @@
   <v-hover v-slot:default="{ hover }">
     <div
       class="notebook-code-cell"
-      :style="{'background': modified? (selected? '#a0bfa0' : hover? '#b0cab0':'#c0cac0'):(selected? '#a0a0a0' : hover? '#b0b0b0':'#c0c0c0')}"
+      :style="{
+        background: modified
+          ? selected
+            ? '#a0bfa0'
+            : hover
+            ? '#b0cab0'
+            : '#c0cac0'
+          : selected
+          ? '#a0a0a0'
+          : hover
+          ? '#b0b0b0'
+          : '#c0c0c0',
+      }"
     >
       <div>
         <codemirror
           :options="cmOptions"
           :value="value"
           ref="cm"
-          @focus="selected=true"
-          @blur="selected=false"
+          @focus="selected = true"
+          @blur="selected = false"
           @input="onInput"
         />
       </div>
       <div v-if="!readonly" class="draghandle">
-        <div style="display: flex; flex-direction: column;align-items: center;height: 100%">
+        <div
+          style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+          "
+        >
           <!-- This div holds the cell toolbar-->
-          <div style="flex-basis:content;">
-            <v-tooltip left v-if="lang=='markdown'">
+          <div style="flex-basis: content">
+            <v-tooltip left v-if="lang == 'markdown'">
               <template v-slot:activator="{ on }">
-                <v-btn fab text icon width="23" height="23" dark v-on="on" @click="$emit('run')">
+                <v-btn
+                  fab
+                  text
+                  icon
+                  width="23"
+                  height="23"
+                  dark
+                  v-on="on"
+                  @click="$emit('run')"
+                >
                   <v-icon size="10px">fab fa-markdown</v-icon>
                 </v-btn>
               </template>
@@ -28,8 +56,16 @@
             </v-tooltip>
             <div
               v-else-if="!hover && false"
-              style="height:23px;padding:2px;padding-top:4px; color: white; font-size: 12px;"
-            >{{ count!==null?count:'_' }}</div>
+              style="
+                height: 23px;
+                padding: 2px;
+                padding-top: 4px;
+                color: white;
+                font-size: 12px;
+              "
+            >
+              {{ count !== null ? count : "_" }}
+            </div>
             <v-tooltip left v-else>
               <template v-slot:activator="{ on }">
                 <v-btn
@@ -41,7 +77,7 @@
                   dark
                   v-on="on"
                   @click="$emit('run')"
-                  style="padding-top: 0;"
+                  style="padding-top: 0"
                 >
                   <v-icon size="10px">fas fa-play</v-icon>
                 </v-btn>
@@ -50,12 +86,20 @@
             </v-tooltip>
           </div>
           <div style="flex: 1"></div>
-          <div style="flex-basis: content;">
+          <div style="flex-basis: content">
             <v-menu bottom left>
               <template v-slot:activator="{ on }">
                 <v-tooltip left>
-                  <template v-slot:activator="{ on:on2 }">
-                    <v-btn v-on="{...on,...on2}" fab text icon width="23" height="23" dark>
+                  <template v-slot:activator="{ on: on2 }">
+                    <v-btn
+                      v-on="{ ...on, ...on2 }"
+                      fab
+                      text
+                      icon
+                      width="23"
+                      height="23"
+                      dark
+                    >
                       <v-icon size="15px">more_vert</v-icon>
                     </v-btn>
                   </template>
@@ -63,13 +107,16 @@
                 </v-tooltip>
               </template>
               <v-list dense>
-                <v-list-item v-if="lang!='markdown'" @click="() => $emit('convert','markdown')">
+                <v-list-item
+                  v-if="lang != 'markdown'"
+                  @click="() => $emit('convert', 'markdown')"
+                >
                   <v-list-item-icon>
                     <v-icon size="20px">fab fa-markdown</v-icon>
                   </v-list-item-icon>
                   <v-list-item-content>Markdown</v-list-item-content>
                 </v-list-item>
-                <v-list-item v-else @click="() => $emit('convert','code')">
+                <v-list-item v-else @click="() => $emit('convert', 'code')">
                   <v-list-item-icon>
                     <v-icon>code</v-icon>
                   </v-list-item-icon>
@@ -117,33 +164,33 @@
 export default {
   model: {
     prop: "value",
-    event: "input"
+    event: "input",
   },
   props: {
     value: String,
     modified: {
       type: Boolean,
-      default: false
+      default: false,
     },
     lang: {
       type: String,
-      default: "python"
+      default: "python",
     },
     readonly: {
       type: Boolean,
-      default: false
+      default: false,
     },
     autofocus: {
       type: Boolean,
-      default: false
+      default: false,
     },
     count: {
       type: Number,
-      default: null
-    }
+      default: null,
+    },
   },
   data: () => ({
-    selected: false
+    selected: false,
   }),
   computed: {
     cmOptions() {
@@ -154,12 +201,14 @@ export default {
         indentUnit: 4,
         extraKeys: {
           "Shift-Enter": () => this.$emit("run"),
-          "Ctrl-S": () => this.$emit("save"),
-          "Cmd-S": () => this.$emit("save")
+          "Ctrl-Z": (cm) => {
+            this.$emit("code-undo");
+            cm.undo();
+          },
         },
-        lineWrapping: true
+        lineWrapping: true,
       };
-    }
+    },
   },
   methods: {
     focus() {
@@ -170,8 +219,8 @@ export default {
       if (v != this.value) {
         this.$emit("input", v);
       }
-    }
-  }
+    },
+  },
 };
 </script>
 <style>
