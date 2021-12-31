@@ -31,7 +31,7 @@ const plugins = [
         compact: production
     }),
     replace({
-        "process.env.NODE_ENV": JSON.stringify(production ? "production" : "debug")
+        "process.env.NODE_ENV": JSON.stringify(production ? "production" : "debug"),
     })
 ];
 if (production) {

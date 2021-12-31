@@ -6,82 +6,73 @@
         {{ object.name }}
       </v-toolbar-title>
       <v-spacer></v-spacer>
-      <v-tooltip bottom>
-        <template #activator="{on}">
-          <v-btn icon v-on="on" @click="download">
-            <v-icon size="110%">fas fa-download</v-icon>
-          </v-btn>
-        </template>
-        <span>Download</span>
-      </v-tooltip>
-      <div v-if="!readonly">
-        <v-tooltip bottom>
-          <template #activator="{on}">
-            <v-btn icon v-on="on" @click="() => $store.dispatch('saveNotebook', { id: object.id })">
-              <v-icon size="110%">fas fa-save</v-icon>
-            </v-btn>
-          </template>
-          <span>Save</span>
-        </v-tooltip>
-        <v-tooltip bottom>
-          <template #activator="{on}">
-            <v-btn icon v-on="on" @click="() => $store.dispatch('runNotebook', { id: object.id })">
-              <v-icon>play_arrow</v-icon>
-            </v-btn>
-          </template>
-          <span>Run All</span>
-        </v-tooltip>
-        <v-tooltip bottom>
-          <template #activator="{on}">
-            <v-btn icon v-on="on" @click="status_button">
-              <v-icon size="110%">{{ status_icon }}</v-icon>
-            </v-btn>
-          </template>
-          <span>{{status_text}}</span>
-        </v-tooltip>
-        <v-tooltip bottom>
-          <template #activator="{on}">
-            <v-btn icon v-on="on" :to="`/objects/${object.id}/notebook/update`">
-              <v-icon>edit</v-icon>
-            </v-btn>
-          </template>
-          <span>Edit Object</span>
-        </v-tooltip>
-      </div>
+      <h-menu-toolbar-items :toolbar="toolbar" :maxSize="toolbarSize" />
     </v-toolbar>
   </div>
 </template>
 <script>
+import KernelStatusButton from "./kernel_status_button.vue";
 export default {
   props: {
     object: Object,
-    readonly: Boolean
+    readonly: Boolean,
   },
   computed: {
-    status_value() {
-      if (
-        this.$store.state.notebooks.notebooks[this.object.id] === undefined ||
-        this.$store.state.notebooks.notebooks[this.object.id].notebook == null
-      ) {
-        return "unknown";
+    toolbar() {
+      let menu = [
+        {
+          icon: "fas fa-download",
+          text: "Download",
+          click: () => this.download(),
+          toolbar: true,
+        },
+      ];
+      if (!this.readonly) {
+        menu.push({
+          icon: "fas fa-save",
+          text: "Save",
+          click: () =>
+            this.$store.dispatch("saveNotebook", { id: this.object.id }),
+          toolbar: true,
+        });
+        menu.push({
+          icon: "play_arrow",
+          text: "Run All",
+          click: () =>
+            this.$store.dispatch("runNotebook", { id: this.object.id }),
+          toolbar: true,
+        });
+        menu.push({
+          toolbar: true,
+          toolbar_component: KernelStatusButton,
+          menu_component: KernelStatusButton,
+          toolbar_props: { objectId: this.object.id },
+          menu_props: { objectId: this.object.id, isList: true },
+        });
       }
-      return this.$store.state.notebooks.notebooks[this.object.id].state;
+      // Generate the menu items from the objectMenu
+      return [
+        ...menu,
+        ...Object.values(
+          this.$store.state.heedy.objectMenu.reduce(
+            (o, m) => ({ ...o, ...m(this.object) }),
+            {}
+          )
+        ),
+      ];
     },
-    status_icon() {
-      let s = this.status_value;
-      if (s == "busy") return "fas fa-hourglass-start";
-      if (s == "idle") return "fas fa-check-square";
-      if (s == "off") return "fas fa-play-circle";
-      return "fas fa-hourglass-start";
+    toolbarSize() {
+      if (this.$vuetify.breakpoint.xs) {
+        return 1;
+      }
+      if (this.$vuetify.breakpoint.sm) {
+        return 4;
+      }
+      if (this.$vuetify.breakpoint.md) {
+        return 7;
+      }
+      return 10;
     },
-    status_text() {
-      let s = this.status_value;
-      if (s == "busy") return "Kernel Busy (Click to Interrupt)";
-      if (s == "idle") return "Kernel Idle (Click to Stop)";
-      if (s == "off") return "Kernel Off (Click to Start)";
-      if (s == "starting") return "Kernel Starting...";
-      return "Waiting for Kernel Status...";
-    }
   },
   methods: {
     download() {
@@ -89,18 +80,6 @@ export default {
         location.href.split("#")[0] +
         `api/objects/${this.object.id}/notebook.ipynb`;
     },
-    status_button() {
-      let s = this.status_value;
-      if (s == "busy")
-        this.$store.dispatch("interruptNotebook", { id: this.object.id });
-      else if (s == "idle")
-        this.$store.dispatch("stopNotebook", { id: this.object.id });
-      else if (s == "off")
-        this.$store.dispatch("getNotebookStatus", {
-          id: this.object.id,
-          start: true
-        });
-    }
-  }
+  },
 };
 </script>
