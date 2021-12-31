@@ -5,8 +5,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "rollup -c",
-    "mkdebug": "rollup -c -m --environment NODE_ENV:debug",
-    "debug": "rollup -c -w -m --environment NODE_ENV:debug"
+    "debug": "rollup -c -m --environment NODE_ENV:debug",
+    "watch": "rollup -c -w -m --environment NODE_ENV:debug"
   },
   "repository": {
     "type": "git",

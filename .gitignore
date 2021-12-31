@@ -1,20 +1,6 @@
-# The public folder is generated from the frontend
-/assets/public
-/assets/setup
+dist
+testdb
+node_modules
+heedy
 
 .vscode
-# Don't save any socket files
-*.sock
-
-# Node modules are unnecessary
-node_modules/
-
-# Don't include python build cache
-__pycache__/
-*.py[cod]
-
-# Ignore databases generated for testing
-test_db/
-testdb/
-
-dist/

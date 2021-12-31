@@ -1,16 +1,39 @@
 {
   "name": "heedy-notebook-plugin",
   "version": "0.0.0",
-  "description": "Use jupyter notebooks in heedy",
+  "description": "",
+  "nodemonConfig": {
+    "ignore": [
+      "README.md",
+      "tests",
+      "docs",
+      "node_modules",
+      ".git",
+      "dist",
+      "testdb",
+      "frontend",
+      "package-lock.json",
+      "package.json",
+      ".gitignore",
+      "heedy",
+      "Makefile",
+      "screenshots"
+    ],
+    "ext": "*",
+    "delay": 500
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "sync:readme": "remark -u remark-embed-images README.md -o ./dist/notebook/README.md",
+    "build:readme": "remark -u remark-embed-images README.md -o ./dist/notebook/README.md",
     "watch:readme": "remark -u remark-embed-images README.md -o ./dist/notebook/README.md -w",
-    "sync:core": "rsync -r --include \"*.py\" --include \"*.conf\" --exclude \"*\" . ./dist/notebook",
-    "watch:core": "nodemon --watch . -e py,conf --ignore dist/ --exec \"npm run sync:core\"",
-    "watch:frontend": "cd frontend; npm run debug",
-    "debug": "run-p 'watch:core' 'watch:readme' 'watch:frontend'",
-    "build": "npm run sync:core && npm run sync:readme"
+    "build:backend": "rsync -r --exclude README.md --exclude screenshots --exclude \".*\" --exclude Makefile --include heedy.conf --exclude \"heedy*\" --exclude tests --exclude docs --exclude node_modules --exclude package.json --exclude package-lock.json --exclude frontend --exclude testdb --exclude dist --exclude docs ./* ./dist/notebook --delete",
+    "watch:backend": "nodemon --watch . --exec \"npm run build:backend\"",
+    "build:frontend": "if test -d ./frontend; then (cd frontend; npm run build); fi",
+    "debug:frontend": "if test -d ./frontend; then (cd frontend; npm run debug); fi",
+    "watch:frontend": "if test -d ./frontend; then (cd frontend; npm run watch); fi",
+    "build": "npm run build:backend && npm run build:readme && npm run build:frontend",
+    "debug": "npm run build:backend && npm run build:readme && npm run debug:frontend",
+    "watch": "run-p 'watch:readme' 'watch:backend' 'watch:frontend'"
   },
   "repository": {
     "type": "git",

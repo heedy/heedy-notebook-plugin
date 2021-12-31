@@ -22,8 +22,8 @@ else:
     logging.basicConfig(level=logging.INFO)
 l = logging.getLogger("notebook")
 
-config_file = os.path.join(p.config["plugin_dir"], "jupyter_heedy_config.py")
-ipy_config = os.path.join(p.config["plugin_dir"], "ipynb")
+config_file = os.path.join(p.config["plugin_dir"], "backend", "jupyter_heedy_config.py")
+ipy_config = os.path.join(p.config["plugin_dir"], "backend", "ipynb")
 
 
 routes = web.RouteTableDef()
