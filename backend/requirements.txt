@@ -1,5 +1,5 @@
 
-heedy>=0.1.3
+heedy>=0.1.5
 aiosqlite
 aiohttp
 matplotlib
