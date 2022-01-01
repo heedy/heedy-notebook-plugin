@@ -1,5 +1,4 @@
 import Create from "./main/create.vue";
-import Update from "./main/update.vue";
 import Container from "./main/container.vue";
 import vuexModule from "./main/vuex.js";
 
@@ -17,10 +16,6 @@ function setup(app) {
     app.addRoute({
         path: "/create/object/notebook",
         component: Create
-    });
-    app.objects.addRoute({
-        path: "/notebook/update",
-        component: Update
     });
 
     app.objects.setType({

@@ -6,11 +6,10 @@ matplotlib
 pandas
 seaborn
 
-scikit-learn
-statsmodels
-
 jupyter>=1.0.0
 notebook>=6.0.0
 ipython>=7.0.0
 jupyter-client>=6.0.0
 jupyter-core>=4.6.0
+
+wheel

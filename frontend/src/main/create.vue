@@ -141,12 +141,12 @@ export default {
         this.$router.replace({ path: `/objects/${result.data.id}` });
       });
       xhr.addEventListener("error", (evt) => {
-        console.log("ERROR", evt);
+        console.error("Upload failed:", evt);
         endRequest();
         this.alert = "Upload failed";
       });
       xhr.addEventListener("abort", (evt) => {
-        console.log("ABORT", evt);
+        console.warn("Upload aborted", evt);
         endRequest();
       });
       xhr.open("POST", `api/objects/${result.data.id}/notebook.ipynb`);

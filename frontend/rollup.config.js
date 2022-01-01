@@ -37,7 +37,8 @@ const plugins = [
 if (production) {
     plugins.push(terser({
         compress: {
-            ecma: 10 // Heedy doesn't do backwards compatibility
+            ecma: 10, // Heedy doesn't do backwards compatibility
+            drop_console: true,
         },
         mangle: true,
         module: true

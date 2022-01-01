@@ -60,17 +60,12 @@ export default {
       }
       let cur_nb = this.$store.state.notebooks.notebooks[this.object.id];
       let updated_nb = updateNotebook(cur_nb.notebook, cur_nb.updates, true);
-      console.log("Updated", updated_nb);
+      //console.log("Updated", updated_nb);
       return updated_nb;
     },
     readonly() {
       let s = this.object.access.split(" ");
       return !s.includes("*") && !s.includes("write");
-    },
-  },
-  methods: {
-    run(i) {
-      console.log(i);
     },
   },
   watch: {

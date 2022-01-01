@@ -38,11 +38,11 @@ function cmpobj(obj1, obj2) {
             case 'object':
                 if (!Object.compare(obj1[p], obj2[p])) return false;
                 break;
-                //Compare function code
+            //Compare function code
             case 'function':
                 if (typeof (obj2[p]) == 'undefined' || (p != 'compare' && obj1[p].toString() != obj2[p].toString())) return false;
                 break;
-                //Compare values
+            //Compare values
             default:
                 if (obj1[p] != obj2[p]) return false;
         }
@@ -122,7 +122,7 @@ export default function updateNotebook(notebook, changeList, markModified = fals
                 //console.log("Cell existss")
                 // The cell already exists. First, update the cell to the newest values
                 let old_index = notebook[cell_id].cell_index;
-                let new_index = c.cell_index || notebook[cell_id].cell_index;
+                let new_index = c.cell_index !== undefined ? c.cell_index : notebook[cell_id].cell_index;
                 notebook[cell_id] = {
                     ...notebook[cell_id],
                     ...c

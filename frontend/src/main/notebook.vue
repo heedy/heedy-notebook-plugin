@@ -64,7 +64,7 @@ export default {
       return uuidv4();
     },
     onMove(evt) {
-      console.log("Cell drag-drop", evt);
+      //console.log("Cell drag-drop", evt);
       this.$emit("update", {
         cell_id: this.cells[evt.oldIndex].cell_id,
         cell_index: evt.newIndex,
