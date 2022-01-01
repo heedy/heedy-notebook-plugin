@@ -55,6 +55,8 @@ export default {
 .notebook-cell-output pre {
   padding: 10px;
   overflow: auto;
+  max-height: 600px;
+  max-width: 100%;
 }
 .notebook-cell-output .nberror {
   background-color: #ffcccb;
