@@ -26,7 +26,7 @@
           @input="onInput"
         />
       </div>
-      <div v-if="!readonly" class="draghandle">
+      <div v-if="!readonly">
         <div
           style="
             display: flex;
@@ -85,7 +85,7 @@
               <span>Run cell (shift+enter)</span>
             </v-tooltip>
           </div>
-          <div style="flex: 1"></div>
+          <div style="flex: 1; width: 24px" class="draghandle"></div>
           <div style="flex-basis: content">
             <v-menu bottom left>
               <template v-slot:activator="{ on }">
@@ -202,6 +202,10 @@ export default {
         extraKeys: {
           "Shift-Enter": () => this.$emit("run"),
           "Ctrl-Z": (cm) => {
+            this.$emit("code-undo");
+            cm.undo();
+          },
+          "Cmd-Z": (cm) => {
             this.$emit("code-undo");
             cm.undo();
           },
