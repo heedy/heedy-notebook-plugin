@@ -9,7 +9,7 @@ import logging
 import aiosqlite
 import uuid
 from datetime import datetime
-
+import re
 import manager
 
 
@@ -301,13 +301,57 @@ async def save_notebook_modifications(object_id, data):
         await p.fire(evt)
 
 
+# Explicitly apply the \b character as a backspace on the string
+# https://stackoverflow.com/questions/34362966/python-how-to-apply-backspaces-to-a-string
+# https://stackoverflow.com/questions/14693701/how-can-i-remove-the-ansi-escape-sequences-from-a-string-in-python
+# An example that needs to work: "\x1b[?25h\x08 \x08canceled\r\n" because it shows up when doing %pip install
+# apply_backspace("\x1b[?25h\x08 \x08canceled\r\n")
+
+backspacer = re.compile(r"[^\x08]\x08")
+ansi_codes = re.compile(r"((?:\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]))+)")
+
+
+def simple_apply_backspace(s):
+    while True:
+        t = backspacer.sub("", s)
+        if not "\b" in t:
+            return t
+        if len(s) == len(t):
+            return t
+        s = t
+
+
+def apply_backspace(s):
+    if not "\b" in s:
+        return s
+    # print("HERE IS THE STRING:", repr(s))
+    acs = ansi_codes.split(s)
+    # print(acs)
+    carry = ""
+    for i in range(len(acs) - 1, -1, -2):
+        # print(i, len(acs))
+        v = simple_apply_backspace(acs[i] + carry)
+        acs[i] = v.lstrip("\b")
+        carry = v[: len(v) - len(acs[i])]
+        # print("acs", repr(acs[i]), (carry))
+
+    return "".join(acs)
+
+
+# Test the following:
+# apply_backspace("\x1b[?25h\x08 \x08canceled\r\n")
+
+
 def fixlines(fulltext):
+    # Stdout output can include backspaces \b and carriage returns \r, which we want to explicitly act on the string.
+
+    # Fix carriage returns
     lines = fulltext.splitlines(True)
     newlines = []
     for i in range(len(lines) - 1):
         if lines[i][-1] != "\r":
-            newlines.append(lines[i])
-    return "".join(newlines) + lines[-1]
+            newlines.append(apply_backspace(lines[i]))
+    return "".join(newlines) + apply_backspace(lines[-1])
 
 
 async def notebook_cell_outputs(object_id, cell_id, data):

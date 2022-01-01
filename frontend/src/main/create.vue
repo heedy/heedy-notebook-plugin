@@ -45,6 +45,7 @@
     </v-container>
     <v-card-actions>
       <v-spacer></v-spacer>
+      <v-btn text @click="$router.go(-1)">Cancel</v-btn>
       <v-btn dark color="blue" @click="create" :loading="loading">Create</v-btn>
     </v-card-actions>
   </h-card-page>
