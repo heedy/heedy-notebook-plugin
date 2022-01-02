@@ -16,7 +16,7 @@
           : '#c0c0c0',
       }"
     >
-      <div>
+      <div style="overflow-x: hidden">
         <codemirror
           :options="cmOptions"
           :value="value"
@@ -210,7 +210,7 @@ export default {
             cm.undo();
           },
         },
-        lineWrapping: true,
+        lineWrapping: false,
       };
     },
   },
